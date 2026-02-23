@@ -24,7 +24,6 @@ struct ComparisonView: View {
 
     @State private var visibleStages: Set<SleepStage> = Set(SleepStage.comparisonStages)
     @State private var visibleEventNames: Set<String> = []
-    private let eventTrackInset: CGFloat = 10
 
     private var orderedDays: [DaySleepRecord] {
         days.sorted { $0.dayStart > $1.dayStart }
@@ -80,14 +79,6 @@ struct ComparisonView: View {
 
     private var stageDomain: ClosedRange<Double> {
         0...(sleepMaxHour + 0.8)
-    }
-
-    private var eventDomain: ClosedRange<Double> {
-        0...24.75
-    }
-
-    private var eventMajorTicks: [Double] {
-        [0, 3, 6, 9, 12, 15, 18, 21, 24]
     }
 
     var body: some View {
@@ -198,6 +189,7 @@ struct ComparisonView: View {
                 }
                 .chartPlotStyle { plotArea in
                     plotArea
+                        .padding(.bottom, 8)
                         .background(SleepPalette.chartPlotBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
@@ -266,25 +258,71 @@ struct ComparisonView: View {
             } else if filteredEventPoints.isEmpty {
                 placeholderText("No matching events for the selected filters.")
             } else {
-                let hourWidth: CGFloat = 34
-                let trackWidth = (CGFloat(eventDomain.upperBound - eventDomain.lowerBound) * hourWidth) + (eventTrackInset * 2)
+                Text("Clock-time view. Each day shows selected events closest to that night's main sleep window.")
+                    .font(.caption)
+                    .foregroundStyle(SleepPalette.mutedText)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Shown in clock time")
-                            .font(.caption)
-                            .foregroundStyle(SleepPalette.mutedText)
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(orderedDays) { day in
+                        let timings = dayEventTimings(for: day)
 
-                        HStack(spacing: 10) {
-                            Color.clear.frame(width: 56, height: 1)
-                            rulerView(trackWidth: trackWidth, hourWidth: hourWidth)
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 10) {
+                                Text(day.dayStart.formatted(.dateTime.month(.abbreviated).day()))
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(SleepPalette.titleText)
+
+                                Spacer()
+
+                                Text("Sleep \(mainSleepWindowText(for: day))")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(SleepPalette.primary)
+                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 8)
+                                    .background(SleepPalette.primary.opacity(0.12))
+                                    .clipShape(Capsule())
+                            }
+
+                            if timings.isEmpty {
+                                Text("No selected events logged for this day.")
+                                    .font(.caption)
+                                    .foregroundStyle(SleepPalette.mutedText)
+                            } else {
+                                VStack(spacing: 8) {
+                                    ForEach(timings, id: \.eventName) { timing in
+                                        HStack(spacing: 8) {
+                                            Circle()
+                                                .fill(eventColor(for: timing.eventName))
+                                                .frame(width: 8, height: 8)
+
+                                            Text(timing.eventName)
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(SleepPalette.stageLabelText)
+
+                                            Spacer()
+
+                                            Text(formattedClockTime(for: timing.hour, on: day.dayStart))
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(SleepPalette.titleText)
+
+                                            if timing.extraCount > 0 {
+                                                Text("+\(timing.extraCount)")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(SleepPalette.mutedText)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(SleepPalette.panelSecondary)
+                                                    .clipShape(Capsule())
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
-
-                        ForEach(orderedDays) { day in
-                            eventRow(for: day, trackWidth: trackWidth, hourWidth: hourWidth)
-                        }
+                        .padding(12)
+                        .background(SleepPalette.chartPlotBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
-                    .frame(minWidth: trackWidth + 56, alignment: .leading)
                 }
             }
         }
@@ -357,103 +395,103 @@ struct ComparisonView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func rulerView(trackWidth: CGFloat, hourWidth: CGFloat) -> some View {
-        ZStack(alignment: .topLeading) {
-            Rectangle()
-                .fill(SleepPalette.chartGrid.opacity(0.5))
-                .frame(width: trackWidth, height: 1)
-                .offset(y: 1)
+    private func dayEventTimings(for day: DaySleepRecord) -> [(eventName: String, hour: Double, extraCount: Int)] {
+        let dayLogs = viewModel.logs(for: day.dayStart)
+        let sleepStart = mainSleepWindow(for: day)?.start
 
-            ForEach(eventMajorTicks, id: \.self) { tick in
-                let x = xPosition(for: tick, hourWidth: hourWidth)
-                let labelX = min(max(x, 14), trackWidth - 14)
+        var entries: [(eventName: String, hour: Double, extraCount: Int)] = []
 
-                Rectangle()
-                    .fill(SleepPalette.chartGrid.opacity(0.55))
-                    .frame(width: 1, height: 6)
-                    .offset(x: x, y: 0)
+        for eventName in eventNames where visibleEventNames.contains(eventName) {
+            let logs = dayLogs.filter { $0.tagName == eventName }
+            guard !logs.isEmpty else { continue }
 
-                Text(clockAxisLabel(for: tick))
-                    .font(.caption2)
-                    .foregroundStyle(SleepPalette.stageLabelText)
-                    .frame(width: 28)
-                    .offset(x: labelX - 14, y: 8)
+            let hours = logs.map { eventHour(for: $0, on: day) }
+            let selectedHour: Double
+
+            if let sleepStart {
+                selectedHour = hours.min {
+                    clockDistance($0, to: sleepStart) < clockDistance($1, to: sleepStart)
+                } ?? hours[0]
+            } else {
+                selectedHour = hours.min() ?? hours[0]
             }
-        }
-        .frame(width: trackWidth, height: 24, alignment: .leading)
-    }
 
-    private func eventRow(for day: DaySleepRecord, trackWidth: CGFloat, hourWidth: CGFloat) -> some View {
-        let dayLabel = day.dayStart.formatted(.dateTime.month(.abbreviated).day())
-        let points = filteredEventPoints.filter { $0.dayLabel == dayLabel }
-
-        return HStack(spacing: 10) {
-            Text(dayLabel)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(SleepPalette.stageLabelText)
-                .frame(width: 56, alignment: .leading)
-
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(SleepPalette.chartPlotBackground)
-
-                ForEach(eventMajorTicks, id: \.self) { tick in
-                    Rectangle()
-                        .fill(SleepPalette.chartGrid.opacity(0.4))
-                        .frame(width: 1, height: 36)
-                        .offset(x: xPosition(for: tick, hourWidth: hourWidth), y: 2)
-                }
-
-                if let sleepBand = sleepBand(for: day, hourWidth: hourWidth) {
-                    Rectangle()
-                        .fill(SleepPalette.primary.opacity(0.15))
-                        .frame(width: sleepBand.width, height: 12)
-                        .offset(x: sleepBand.x, y: 14)
-                }
-
-                ForEach(points) { point in
-                    eventMarker(for: point, hourWidth: hourWidth)
-                }
-            }
-            .frame(width: trackWidth, height: 40)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
-    }
-
-    private func eventMarker(for point: EventTimelinePoint, hourWidth: CGFloat) -> some View {
-        let color = eventColor(for: point.eventName)
-        let x = xPosition(for: point.hour, hourWidth: hourWidth)
-
-        return ZStack(alignment: .top) {
-            Rectangle()
-                .fill(color.opacity(0.35))
-                .frame(width: 2, height: 20)
-                .offset(y: 8)
-
-            Circle()
-                .fill(color)
-                .frame(width: 10, height: 10)
-                .overlay(
-                    Circle()
-                        .stroke(Color.white.opacity(0.35), lineWidth: 0.5)
+            entries.append(
+                (
+                    eventName: eventName,
+                    hour: selectedHour,
+                    extraCount: max(logs.count - 1, 0)
                 )
+            )
         }
-        .offset(x: x - 5, y: 0)
+
+        if let sleepStart {
+            return entries.sorted { clockDistance($0.hour, to: sleepStart) < clockDistance($1.hour, to: sleepStart) }
+        }
+
+        return entries.sorted { $0.hour < $1.hour }
     }
 
-    private func xPosition(for hour: Double, hourWidth: CGFloat) -> CGFloat {
-        let bounded = min(max(hour, eventDomain.lowerBound), eventDomain.upperBound)
-        return (CGFloat(bounded - eventDomain.lowerBound) * hourWidth) + eventTrackInset
-    }
+    private func mainSleepWindow(for day: DaySleepRecord) -> (start: Double, end: Double)? {
+        let ordered = day.segments.sorted { $0.startDate < $1.startDate }
+        guard !ordered.isEmpty else { return nil }
 
-    private func sleepBand(for day: DaySleepRecord, hourWidth: CGFloat) -> (x: CGFloat, width: CGFloat)? {
-        guard let ranges = day.hypnogramRanges(alignment: .clockTime).sorted(by: { $0.startHour < $1.startHour }).first,
-              let end = day.hypnogramRanges(alignment: .clockTime).map(\.endHour).max() else {
+        struct Window {
+            var start: Date
+            var end: Date
+            var duration: TimeInterval
+        }
+
+        var windows: [Window] = []
+        var current = Window(
+            start: ordered[0].startDate,
+            end: ordered[0].endDate,
+            duration: ordered[0].duration
+        )
+
+        for segment in ordered.dropFirst() {
+            let gap = segment.startDate.timeIntervalSince(current.end)
+            if gap <= 45 * 60 {
+                current.end = max(current.end, segment.endDate)
+                current.duration += segment.duration
+            } else {
+                windows.append(current)
+                current = Window(
+                    start: segment.startDate,
+                    end: segment.endDate,
+                    duration: segment.duration
+                )
+            }
+        }
+
+        windows.append(current)
+
+        guard let mainWindow = windows.max(by: { $0.duration < $1.duration }) else {
             return nil
         }
-        let startX = xPosition(for: ranges.startHour, hourWidth: hourWidth)
-        let endX = xPosition(for: end, hourWidth: hourWidth)
-        return (x: startX, width: max(endX - startX, 6))
+
+        let startHour = max(mainWindow.start.timeIntervalSince(day.dayStart) / 3600, 0)
+        let endHour = max(mainWindow.end.timeIntervalSince(day.dayStart) / 3600, 0)
+        return (start: startHour, end: endHour)
+    }
+
+    private func mainSleepWindowText(for day: DaySleepRecord) -> String {
+        guard let window = mainSleepWindow(for: day) else { return "--" }
+        let start = formattedClockTime(for: window.start, on: day.dayStart)
+        let end = formattedClockTime(for: window.end, on: day.dayStart)
+        return "\(start)-\(end)"
+    }
+
+    private func clockDistance(_ first: Double, to second: Double) -> Double {
+        let raw = abs(first - second).truncatingRemainder(dividingBy: 24)
+        return min(raw, 24 - raw)
+    }
+
+    private func formattedClockTime(for hour: Double, on dayStart: Date) -> String {
+        let normalized = hour.truncatingRemainder(dividingBy: 24)
+        let safeHour = normalized < 0 ? normalized + 24 : normalized
+        let date = dayStart.addingTimeInterval(safeHour * 3600)
+        return date.formatted(date: .omitted, time: .shortened)
     }
 
     private func headerCell(_ text: String, width: CGFloat, alignment: Alignment) -> some View {
@@ -528,13 +566,6 @@ struct ComparisonView: View {
 
     private func eventHour(for log: DayBehaviorLog, on day: DaySleepRecord) -> Double {
         log.loggedAt.timeIntervalSince(day.dayStart) / 3600
-    }
-
-    private func clockAxisLabel(for hour: Double) -> String {
-        let normalized = (Int(hour.rounded()) % 24 + 24) % 24
-        let suffix = normalized < 12 ? "AM" : "PM"
-        let hour12 = normalized % 12 == 0 ? 12 : normalized % 12
-        return "\(hour12) \(suffix)"
     }
 
     private func eventColor(for eventName: String) -> Color {
