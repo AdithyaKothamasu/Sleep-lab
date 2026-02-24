@@ -58,7 +58,7 @@ struct ComparisonView: View {
 
     private var allEventPoints: [EventTimelinePoint] {
         orderedDays.flatMap { day in
-            let logs = viewModel.logs(for: day.dayStart)
+            let logs = viewModel.logs(forSleepDay: day.dayStart)
             return logs.map { log in
                 EventTimelinePoint(
                     dayLabel: day.dayStart.formatted(.dateTime.month(.abbreviated).day()),
@@ -150,8 +150,12 @@ struct ComparisonView: View {
     private var stageTimelineCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Stage-by-Stage Sleep Comparison")
-                .font(.headline)
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(SleepPalette.titleText)
+
+            Text("Primary comparison view across selected nights")
+                .font(.caption)
+                .foregroundStyle(SleepPalette.mutedText)
 
             if visibleStages.isEmpty {
                 placeholderText("Select at least one sleep stage.")
@@ -163,11 +167,11 @@ struct ComparisonView: View {
                         xStart: .value("Start", segment.startHour),
                         xEnd: .value("End", segment.endHour),
                         y: .value("Day", segment.dayLabel),
-                        height: .fixed(24)
+                        height: .fixed(36)
                     )
                     .foregroundStyle(SleepPalette.stageColor(for: segment.stage))
                 }
-                .frame(height: CGFloat(max(orderedDays.count, 2)) * 44)
+                .frame(height: max(CGFloat(max(orderedDays.count, 2)) * 72, 240))
                 .chartXScale(domain: stageDomain)
                 .chartYAxis {
                     AxisMarks(position: .leading) { _ in
@@ -189,7 +193,9 @@ struct ComparisonView: View {
                 }
                 .chartPlotStyle { plotArea in
                     plotArea
-                        .padding(.bottom, 8)
+                        .padding(.top, 10)
+                        .padding(.bottom, 14)
+                        .padding(.horizontal, 4)
                         .background(SleepPalette.chartPlotBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
@@ -252,7 +258,7 @@ struct ComparisonView: View {
                 .foregroundStyle(SleepPalette.titleText)
 
             if eventNames.isEmpty {
-                placeholderText("Log events on day detail screens to compare timing impact.")
+                placeholderText("Log events from the home timeline screen to compare timing impact.")
             } else if visibleEventNames.isEmpty {
                 placeholderText("Select at least one event type.")
             } else if filteredEventPoints.isEmpty {
@@ -396,7 +402,7 @@ struct ComparisonView: View {
     }
 
     private func dayEventTimings(for day: DaySleepRecord) -> [(eventName: String, hour: Double, extraCount: Int)] {
-        let dayLogs = viewModel.logs(for: day.dayStart)
+        let dayLogs = viewModel.logs(forSleepDay: day.dayStart)
         let sleepStart = mainSleepWindow(for: day)?.start
 
         var entries: [(eventName: String, hour: Double, extraCount: Int)] = []

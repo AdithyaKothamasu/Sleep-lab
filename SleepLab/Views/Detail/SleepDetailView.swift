@@ -6,8 +6,7 @@ struct SleepDetailView: View {
     let day: DaySleepRecord
 
     @State private var behaviorLogs: [DayBehaviorLog] = []
-    @State private var showAddCustomTag = false
-    @State private var showLogTag = false
+    @State private var pendingDeleteLog: DayBehaviorLog?
 
     var body: some View {
         ScrollView {
@@ -24,17 +23,33 @@ struct SleepDetailView: View {
         .onAppear {
             reloadLogs()
         }
-        .sheet(isPresented: $showAddCustomTag) {
-            AddTagSheet { name, colorHex in
-                viewModel.addCustomTag(name: name, colorHex: colorHex)
-            }
-        }
-        .sheet(isPresented: $showLogTag) {
-            LogBehaviorSheet(events: viewModel.events, dayStart: day.dayStart) { eventName, note, eventTime in
-                viewModel.addLog(for: day.dayStart, tagName: eventName, note: note, eventTime: eventTime)
+        .alert(
+            "Delete Event?",
+            isPresented: Binding(
+                get: { pendingDeleteLog != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        pendingDeleteLog = nil
+                    }
+                }
+            ),
+            presenting: pendingDeleteLog
+        ) { log in
+            Button("Delete", role: .destructive) {
+                viewModel.deleteLog(log)
                 reloadLogs()
+                pendingDeleteLog = nil
             }
+            Button("Cancel", role: .cancel) {
+                pendingDeleteLog = nil
+            }
+        } message: { log in
+            Text("This deletes \(log.tagName) at \(log.loggedAt.formatted(.dateTime.hour().minute())).")
         }
+    }
+
+    private var eventDayStart: Date {
+        viewModel.priorEventDay(forSleepDay: day.dayStart)
     }
 
     private var summaryCard: some View {
@@ -92,30 +107,36 @@ struct SleepDetailView: View {
                     .font(.headline)
                     .foregroundStyle(SleepPalette.titleText)
 
+                Text(eventDayStart.formatted(.dateTime.month(.abbreviated).day()))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(SleepPalette.mutedText)
+
                 Spacer()
-
-                Button("New Event") {
-                    showAddCustomTag = true
-                }
-                .font(.subheadline.weight(.semibold))
-
-                Button("Log Event") {
-                    showLogTag = true
-                }
-                .font(.subheadline.weight(.semibold))
-                .disabled(viewModel.events.isEmpty)
             }
 
             if behaviorLogs.isEmpty {
-                Text("No events for this day.")
+                Text("No events for the previous day.")
                     .font(.subheadline)
                     .foregroundStyle(SleepPalette.mutedText)
             } else {
                 ForEach(behaviorLogs) { log in
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(log.tagName)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(SleepPalette.titleText)
+                        HStack(spacing: 8) {
+                            Text(log.tagName)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(SleepPalette.titleText)
+
+                            Spacer()
+
+                            Button(role: .destructive) {
+                                pendingDeleteLog = log
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(SleepPalette.mutedText)
+                        }
 
                         if let note = log.note {
                             Text(note)
@@ -132,6 +153,10 @@ struct SleepDetailView: View {
                     .background(SleepPalette.panelSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
+
+                Text("Add or edit events from the home timeline screen.")
+                    .font(.caption)
+                    .foregroundStyle(SleepPalette.mutedText)
             }
         }
         .padding(16)
@@ -144,7 +169,7 @@ struct SleepDetailView: View {
     }
 
     private func reloadLogs() {
-        behaviorLogs = viewModel.logs(for: day.dayStart)
+        behaviorLogs = viewModel.logs(forSleepDay: day.dayStart)
     }
 
     private func metricRow(title: String, value: String) -> some View {

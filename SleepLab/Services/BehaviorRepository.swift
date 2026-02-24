@@ -12,19 +12,20 @@ final class BehaviorRepository: ObservableObject {
     }
 
     func seedDefaultTagsIfNeeded() throws {
-        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: PersistenceController.EntityName.tagDefinition)
-        let existingCount = try context.count(for: fetchRequest)
+        let request = NSFetchRequest<NSManagedObject>(entityName: PersistenceController.EntityName.tagDefinition)
+        let existing = try context.fetch(request)
 
-        guard existingCount == 0 else { return }
+        let existingNames = Set(
+            existing.compactMap { ($0.value(forKey: "name") as? String)?.lowercased() }
+        )
 
         let defaultTags: [(name: String, colorHex: String)] = [
-            ("Caffeine", "#D97B2A"),
             ("Workout", "#2FA56A"),
             ("Dinner", "#4A7DF0"),
-            ("Stress", "#D94C63")
+            ("Caffeine", "#D97B2A")
         ]
 
-        for tag in defaultTags {
+        for tag in defaultTags where !existingNames.contains(tag.name.lowercased()) {
             let object = NSEntityDescription.insertNewObject(
                 forEntityName: PersistenceController.EntityName.tagDefinition,
                 into: context
@@ -36,7 +37,17 @@ final class BehaviorRepository: ObservableObject {
             object.setValue(Date(), forKey: "createdAt")
         }
 
-        try context.save()
+        for object in existing {
+            let isSystem = object.value(forKey: "isSystem") as? Bool ?? false
+            let name = (object.value(forKey: "name") as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if isSystem && name.caseInsensitiveCompare("Stress") == .orderedSame {
+                context.delete(object)
+            }
+        }
+
+        if context.hasChanges {
+            try context.save()
+        }
     }
 
     func fetchTags() throws -> [BehaviorTag] {
@@ -129,6 +140,16 @@ final class BehaviorRepository: ObservableObject {
         object.setValue(cleanedNote?.isEmpty == true ? nil : cleanedNote, forKey: "note")
         object.setValue(eventTimestamp, forKey: "loggedAt")
 
+        try context.save()
+    }
+
+    func deleteLog(id: UUID) throws {
+        let request = NSFetchRequest<NSManagedObject>(entityName: PersistenceController.EntityName.dayTagLog)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+
+        guard let object = try context.fetch(request).first else { return }
+        context.delete(object)
         try context.save()
     }
 

@@ -20,10 +20,12 @@ final class SleepLabViewModel: ObservableObject {
 
     private let healthKitService: HealthKitService
     private let behaviorRepository: BehaviorRepository
+    private var calendar = Calendar(identifier: .gregorian)
 
     init(healthKitService: HealthKitService, behaviorRepository: BehaviorRepository) {
         self.healthKitService = healthKitService
         self.behaviorRepository = behaviorRepository
+        calendar.timeZone = .current
     }
 
     var selectedDays: [DaySleepRecord] {
@@ -112,6 +114,10 @@ final class SleepLabViewModel: ObservableObject {
         (try? behaviorRepository.fetchLogs(for: dayStart)) ?? []
     }
 
+    func logs(forSleepDay dayStart: Date) -> [DayBehaviorLog] {
+        (try? behaviorRepository.fetchLogs(for: priorEventDay(forSleepDay: dayStart))) ?? []
+    }
+
     func addCustomTag(name: String, colorHex: String) {
         do {
             try behaviorRepository.addCustomTag(name: name, colorHex: colorHex)
@@ -127,5 +133,31 @@ final class SleepLabViewModel: ObservableObject {
         } catch {
             errorMessage = "Could not save event."
         }
+    }
+
+    func addLog(forSleepDay dayStart: Date, tagName: String, note: String?, eventTime: Date) {
+        do {
+            try behaviorRepository.addLog(
+                for: priorEventDay(forSleepDay: dayStart),
+                tagName: tagName,
+                note: note,
+                eventTime: eventTime
+            )
+        } catch {
+            errorMessage = "Could not save event."
+        }
+    }
+
+    func deleteLog(_ log: DayBehaviorLog) {
+        do {
+            try behaviorRepository.deleteLog(id: log.id)
+        } catch {
+            errorMessage = "Could not delete event."
+        }
+    }
+
+    func priorEventDay(forSleepDay dayStart: Date) -> Date {
+        let normalized = calendar.startOfDay(for: dayStart)
+        return calendar.date(byAdding: .day, value: -1, to: normalized) ?? normalized
     }
 }
