@@ -24,6 +24,7 @@ struct ComparisonView: View {
 
     @State private var visibleStages: Set<SleepStage> = Set(SleepStage.comparisonStages)
     @State private var visibleEventNames: Set<String> = []
+    @AppStorage("pattern.ai.enabled") private var aiInsightsEnabled = false
 
     private var orderedDays: [DaySleepRecord] {
         days.sorted { $0.dayStart > $1.dayStart }
@@ -81,6 +82,10 @@ struct ComparisonView: View {
         0...(sleepMaxHour + 0.8)
     }
 
+    private var analysisTaskID: String {
+        "\(viewModel.patternSelectionKey(for: orderedDays))|ai:\(aiInsightsEnabled)"
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -100,6 +105,7 @@ struct ComparisonView: View {
                 eventFilterChips
                 eventsTimelineCard
                 durationNumbersCard
+                patternDetectionCard
             }
             .padding(16)
         }
@@ -109,6 +115,9 @@ struct ComparisonView: View {
         }
         .onChange(of: eventNames) {
             initializeEventFilters()
+        }
+        .task(id: analysisTaskID) {
+            await viewModel.analyzePatterns(for: orderedDays, includeAIInsights: aiInsightsEnabled)
         }
     }
 
@@ -399,6 +408,162 @@ struct ComparisonView: View {
                 .stroke(SleepPalette.cardStroke, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var patternDetectionCard: some View {
+        let result = viewModel.patternResult(for: orderedDays)
+
+        return VStack(alignment: .leading, spacing: 14) {
+            Text("Pattern Detection")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(SleepPalette.titleText)
+
+            Toggle(isOn: $aiInsightsEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enable AI Pattern Insights")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(SleepPalette.titleText)
+                    Text("Cloud analysis for selected dates only")
+                        .font(.caption)
+                        .foregroundStyle(SleepPalette.mutedText)
+                }
+            }
+            .tint(SleepPalette.primary)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Deterministic Findings")
+                    .font(.headline)
+                    .foregroundStyle(SleepPalette.titleText)
+
+                if let result {
+                    if result.deterministicInsights.isEmpty {
+                        placeholderText("No deterministic findings for selected dates.")
+                    } else {
+                        ForEach(result.deterministicInsights) { insight in
+                            insightRow(
+                                title: insight.title,
+                                summary: insight.summary,
+                                confidence: insight.confidence.rawValue.capitalized,
+                                evidence: insight.evidence.map { "\($0.dayLabel): \($0.metric) \($0.value)" }
+                            )
+                        }
+                    }
+                } else {
+                    ProgressView("Analyzing selected nights")
+                        .tint(SleepPalette.primary)
+                }
+            }
+
+            Divider()
+                .overlay(SleepPalette.cardStroke)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("AI Insights")
+                    .font(.headline)
+                    .foregroundStyle(SleepPalette.titleText)
+
+                if let result {
+                    switch result.aiStatus {
+                    case .disabled:
+                        Text("AI insights are off. Toggle on to run cloud analysis.")
+                            .font(.caption)
+                            .foregroundStyle(SleepPalette.mutedText)
+                    case .loading:
+                        ProgressView("Generating AI insights")
+                            .tint(SleepPalette.primary)
+                    case .unavailable:
+                        Text("AI service is unavailable. Configure PATTERN_API_BASE_URL to enable.")
+                            .font(.caption)
+                            .foregroundStyle(SleepPalette.mutedText)
+                    case .failed(let message):
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    case .ready:
+                        if let summary = result.aiSummary {
+                            Text(summary)
+                                .font(.subheadline)
+                                .foregroundStyle(SleepPalette.stageLabelText)
+                        }
+
+                        if result.aiInsights.isEmpty {
+                            Text(result.noClearPattern ? "No clear AI pattern detected for these nights." : "AI did not return detailed insights.")
+                                .font(.caption)
+                                .foregroundStyle(SleepPalette.mutedText)
+                        } else {
+                            ForEach(result.aiInsights) { insight in
+                                insightRow(
+                                    title: insight.title,
+                                    summary: insight.summary,
+                                    confidence: insight.confidence.rawValue.capitalized,
+                                    evidence: insight.evidence
+                                )
+                            }
+                        }
+
+                        if !result.caveats.isEmpty {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Caveats")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(SleepPalette.mutedText)
+                                ForEach(result.caveats, id: \.self) { caveat in
+                                    Text("• \(caveat)")
+                                        .font(.caption)
+                                        .foregroundStyle(SleepPalette.mutedText)
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+                } else {
+                    Text("Waiting for analysis.")
+                        .font(.caption)
+                        .foregroundStyle(SleepPalette.mutedText)
+                }
+            }
+        }
+        .padding(16)
+        .background(SleepPalette.panelBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(SleepPalette.cardStroke, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func insightRow(title: String, summary: String, confidence: String, evidence: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(SleepPalette.titleText)
+                Spacer()
+                Text(confidence)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(SleepPalette.primary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(SleepPalette.primary.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+
+            Text(summary)
+                .font(.caption)
+                .foregroundStyle(SleepPalette.stageLabelText)
+
+            if !evidence.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(evidence.prefix(3)), id: \.self) { entry in
+                        Text("• \(entry)")
+                            .font(.caption2)
+                            .foregroundStyle(SleepPalette.mutedText)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(SleepPalette.chartPlotBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private func dayEventTimings(for day: DaySleepRecord) -> [(eventName: String, hour: Double, extraCount: Int)] {

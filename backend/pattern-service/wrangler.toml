@@ -1,0 +1,8 @@
+name = "sleeplab-pattern-service"
+main = "src/index.ts"
+compatibility_date = "2025-02-20"
+
+[[kv_namespaces]]
+binding = "INSTALL_KEYS"
+id = "25ba15144eb94290b14d3d30266c4758"
+preview_id = "93028b6b2de34c3581026eddc1ab1bba"

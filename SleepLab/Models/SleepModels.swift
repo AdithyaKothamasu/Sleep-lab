@@ -309,3 +309,132 @@ struct DaySleepRecord: Identifiable, Hashable {
             .max() ?? 0
     }
 }
+
+enum InsightConfidence: String, Codable, CaseIterable {
+    case low
+    case medium
+    case high
+}
+
+struct PatternEvidence: Identifiable, Hashable, Codable {
+    let id: String
+    let dayLabel: String
+    let metric: String
+    let value: String
+
+    init(dayLabel: String, metric: String, value: String) {
+        self.id = "\(dayLabel)-\(metric)-\(value)"
+        self.dayLabel = dayLabel
+        self.metric = metric
+        self.value = value
+    }
+}
+
+struct DeterministicInsight: Identifiable, Hashable, Codable {
+    let id: String
+    let title: String
+    let summary: String
+    let confidence: InsightConfidence
+    let evidence: [PatternEvidence]
+}
+
+struct AIInsight: Identifiable, Hashable, Codable {
+    let id: String
+    let title: String
+    let summary: String
+    let confidence: InsightConfidence
+    let evidence: [String]
+
+    init(id: String = UUID().uuidString, title: String, summary: String, confidence: InsightConfidence, evidence: [String]) {
+        self.id = id
+        self.title = title
+        self.summary = summary
+        self.confidence = confidence
+        self.evidence = evidence
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case summary
+        case confidence
+        case evidence
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        summary = try container.decode(String.self, forKey: .summary)
+        confidence = try container.decode(InsightConfidence.self, forKey: .confidence)
+        evidence = try container.decodeIfPresent([String].self, forKey: .evidence) ?? []
+        id = try container.decodeIfPresent(String.self, forKey: .id) ?? "\(title)-\(summary)".lowercased()
+    }
+}
+
+struct AIInsightResponse: Hashable, Codable {
+    let aiSummary: String
+    let insights: [AIInsight]
+    let caveats: [String]
+    let noClearPattern: Bool
+}
+
+enum PatternAIStatus: Hashable {
+    case disabled
+    case loading
+    case ready
+    case failed(String)
+    case unavailable
+}
+
+struct PatternAnalysisResult: Hashable {
+    var deterministicInsights: [DeterministicInsight]
+    var aiSummary: String?
+    var aiInsights: [AIInsight]
+    var caveats: [String]
+    var noClearPattern: Bool
+    var aiStatus: PatternAIStatus
+    var analyzedAt: Date
+}
+
+struct PatternAnalysisPayload: Codable {
+    let selectedDates: [PatternDayPayload]
+}
+
+struct PatternDayPayload: Codable {
+    let dayLabel: String
+    let dayStartISO: String
+    let sleep: PatternSleepMetricsPayload
+    let stageDurations: [PatternStageDurationPayload]
+    let segments: [PatternSleepSegmentPayload]
+    let events: [PatternEventPayload]
+}
+
+struct PatternSleepMetricsPayload: Codable {
+    let totalSleepHours: Double
+    let awakeningCount: Int
+    let mainSleepStartISO: String?
+    let mainSleepEndISO: String?
+    let averageHeartRate: Double?
+    let averageHRV: Double?
+    let averageRespiratoryRate: Double?
+    let workoutMinutes: Double?
+}
+
+struct PatternStageDurationPayload: Codable {
+    let stage: String
+    let hours: Double
+}
+
+struct PatternSleepSegmentPayload: Codable {
+    let stage: String
+    let startISO: String
+    let endISO: String
+    let durationMinutes: Double
+}
+
+struct PatternEventPayload: Codable {
+    let name: String
+    let timestampISO: String
+    let note: String?
+    let minutesBeforeMainSleepStart: Double?
+}
