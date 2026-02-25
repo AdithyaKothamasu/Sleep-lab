@@ -10,15 +10,16 @@ struct HealthPermissionView: View {
     var body: some View {
         VStack(spacing: 24) {
             VStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(SleepPalette.iconCircle)
-                        .frame(width: 92, height: 92)
-
-                    Image(systemName: "waveform.path.ecg")
-                        .font(.system(size: 38, weight: .semibold))
-                        .foregroundStyle(SleepPalette.primary)
-                }
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 92, height: 92)
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(SleepPalette.cardStroke, lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.14), radius: 8, x: 0, y: 4)
 
                 Text("Sleep Lab")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
