@@ -755,10 +755,20 @@ struct ComparisonView: View {
             }
             return rounded > 0 ? "+\(rounded)h" : "\(rounded)h"
         case .clockTime:
-            let normalized = (Int(hour.rounded()) % 24 + 24) % 24
-            let suffix = normalized < 12 ? "a" : "p"
-            let hour12 = normalized % 12 == 0 ? 12 : normalized % 12
-            return "\(hour12)\(suffix)"
+            // Use the first day's baseline to compute actual clock time from relative hour
+            guard let firstDay = orderedDays.first else {
+                return "\(Int(hour))h"
+            }
+            let baseline = firstDay.hypnogramBaseline(alignment: alignment)
+            let targetDate = baseline.addingTimeInterval(hour * 3600)
+            return Self.comparisonTimeFormatter.string(from: targetDate)
         }
     }
+
+    private static let comparisonTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.setLocalizedDateFormatFromTemplate("ha")
+        return formatter
+    }()
 }

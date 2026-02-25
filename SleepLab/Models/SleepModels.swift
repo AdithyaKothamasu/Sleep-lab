@@ -244,7 +244,13 @@ struct DaySleepRecord: Identifiable, Hashable {
         let orderedSegments = segments.sorted { $0.startDate < $1.startDate }
         guard !orderedSegments.isEmpty else { return [] }
 
-        let baseline = alignment == .sleepStart ? orderedSegments.first?.startDate : dayStart
+        let baseline: Date?
+        switch alignment {
+        case .sleepStart:
+            baseline = orderedSegments.first?.startDate
+        case .clockTime:
+            baseline = orderedSegments.first?.startDate
+        }
         guard let baseline else { return [] }
 
         var ranges: [HypnogramRange] = []
@@ -307,6 +313,20 @@ struct DaySleepRecord: Identifiable, Hashable {
         hypnogramRanges(alignment: alignment)
             .map(\.endHour)
             .max() ?? 0
+    }
+
+    func hypnogramMinHour(alignment: ComparisonAlignment) -> Double {
+        hypnogramRanges(alignment: alignment)
+            .map(\.startHour)
+            .min() ?? 0
+    }
+
+    /// The baseline date used for hypnogram hour calculations.
+    func hypnogramBaseline(alignment: ComparisonAlignment) -> Date {
+        switch alignment {
+        case .sleepStart, .clockTime:
+            return firstSegmentStart ?? dayStart
+        }
     }
 }
 

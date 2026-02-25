@@ -37,6 +37,7 @@ struct AppRootView: View {
         }
         .task {
             viewModel.prepareStores()
+            viewModel.checkAndLoadIfAuthorized()
         }
     }
 }

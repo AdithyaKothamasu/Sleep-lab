@@ -29,6 +29,13 @@ final class SleepLabViewModel: ObservableObject {
     private let deterministicPatternEngine: DeterministicPatternEngine
     private let patternAPIService: PatternAPIService
 
+    private static let healthAuthCompletedKey = "healthAuthorizationCompleted"
+
+    private var hasCompletedHealthAuth: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.healthAuthCompletedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.healthAuthCompletedKey) }
+    }
+
     private var calendar = Calendar(identifier: .gregorian)
 
     init(
@@ -63,6 +70,30 @@ final class SleepLabViewModel: ObservableObject {
         }
     }
 
+    func checkAndLoadIfAuthorized() {
+        guard loadState == .idle else { return }
+
+        // If the user has previously completed the authorization flow,
+        // skip the permission screen and load data directly.
+        if hasCompletedHealthAuth {
+            loadState = .loading
+            Task {
+                do {
+                    let days = try await healthKitService.loadSleepDays(forLast: 30)
+                    sleepDays = days
+                    patternResultBySelectionKey.removeAll()
+                    loadState = .ready
+                } catch {
+                    // If loading fails, reset the flag so the permission screen
+                    // is shown again for the user to re-authorize
+                    hasCompletedHealthAuth = false
+                    loadState = .idle
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
     func requestAccessAndLoadTimeline() {
         guard loadState != .loading && loadState != .requestingAuthorization else { return }
 
@@ -72,6 +103,7 @@ final class SleepLabViewModel: ObservableObject {
         Task {
             do {
                 try await healthKitService.requestAuthorization()
+                hasCompletedHealthAuth = true
                 loadState = .loading
 
                 let days = try await healthKitService.loadSleepDays(forLast: 30)
@@ -85,6 +117,7 @@ final class SleepLabViewModel: ObservableObject {
             } catch let error as HealthKitServiceError {
                 switch error {
                 case .authorizationDenied:
+                    hasCompletedHealthAuth = true
                     loadState = .denied
                     errorMessage = error.localizedDescription
                 case .unavailable:

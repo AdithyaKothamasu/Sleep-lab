@@ -86,8 +86,7 @@ struct SleepDetailView: View {
                     alignment: .clockTime,
                     minimumWidth: max(day.chartWidth, 360),
                     chartHeight: 230,
-                    showsStageLabels: true,
-                    axisLabelMode: .clockTime
+                    showsStageLabels: true
                 )
             }
         }

@@ -63,8 +63,7 @@ struct SleepDayCardView: View {
             alignment: .clockTime,
             minimumWidth: day.chartWidth,
             chartHeight: 184,
-            showsStageLabels: false,
-            axisLabelMode: .offsetHours
+            showsStageLabels: false
         )
     }
 
@@ -95,18 +94,12 @@ struct SleepDayCardView: View {
     }
 }
 
-enum HypnogramAxisLabelMode {
-    case clockTime
-    case offsetHours
-}
-
 struct AppleSleepHypnogramView: View {
     let day: DaySleepRecord
     let alignment: ComparisonAlignment
     let minimumWidth: Double
     let chartHeight: CGFloat
     let showsStageLabels: Bool
-    let axisLabelMode: HypnogramAxisLabelMode
 
     private var ranges: [HypnogramRange] {
         day.hypnogramRanges(alignment: alignment)
@@ -120,22 +113,22 @@ struct AppleSleepHypnogramView: View {
         max(day.hypnogramMaxHour(alignment: alignment), 4)
     }
 
+    private var minHour: Double {
+        day.hypnogramMinHour(alignment: alignment)
+    }
+
     private var chartWidth: CGFloat {
-        max(CGFloat(minimumWidth), CGFloat(maxHour) * 58)
+        let span = maxHour - minHour
+        return max(CGFloat(minimumWidth), CGFloat(span) * 58)
     }
 
     private var baselineDate: Date {
-        switch alignment {
-        case .clockTime:
-            return day.dayStart
-        case .sleepStart:
-            return day.firstSegmentStart ?? day.dayStart
-        }
+        day.hypnogramBaseline(alignment: alignment)
     }
 
     var body: some View {
         Group { ranges.isEmpty ? AnyView(emptyState) : AnyView(chartBody) }
-        .frame(width: chartWidth, height: chartHeight)
+            .frame(width: chartWidth, height: chartHeight)
     }
 
     private var emptyState: some View {
@@ -153,12 +146,12 @@ struct AppleSleepHypnogramView: View {
             transitionMarks
             rangeMarks
         }
-        .chartXScale(domain: 0...maxHour)
+        .chartXScale(domain: minHour...maxHour)
         .chartYScale(domain: -0.5...3.5)
         .chartYAxis {
             AxisMarks(position: .leading, values: SleepStage.appleAxisValues) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 1))
-                    .foregroundStyle(SleepPalette.chartGrid.opacity(0.7))
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.6))
+                    .foregroundStyle(SleepPalette.chartGrid)
 
                 if showsStageLabels,
                    let row = value.as(Double.self),
@@ -172,12 +165,12 @@ struct AppleSleepHypnogramView: View {
             }
         }
         .chartXAxis {
-            AxisMarks(position: .bottom, values: .stride(by: 3)) { value in
+            AxisMarks(position: .bottom, values: .stride(by: 2)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    .foregroundStyle(SleepPalette.chartGrid.opacity(0.5))
+                    .foregroundStyle(SleepPalette.chartGrid)
                 AxisValueLabel {
                     if let hour = value.as(Double.self) {
-                        Text(axisLabel(for: hour))
+                        Text(clockLabel(for: hour))
                             .font(.caption)
                             .foregroundStyle(SleepPalette.stageLabelText)
                     }
@@ -187,9 +180,24 @@ struct AppleSleepHypnogramView: View {
         .chartPlotStyle { plotArea in
             plotArea
                 .background(SleepPalette.chartPlotBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .chartLegend(.hidden)
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                let plotFrame = geo[proxy.plotFrame!]
+                let yPositions = SleepStage.appleAxisValues.compactMap { row -> CGFloat? in
+                    guard let pos = proxy.position(forY: row + 0.5) else { return nil }
+                    return plotFrame.origin.y + pos
+                }
+                ForEach(Array(yPositions.enumerated()), id: \.offset) { _, y in
+                    Rectangle()
+                        .fill(SleepPalette.chartGrid.opacity(0.6))
+                        .frame(width: plotFrame.width, height: 0.8)
+                        .position(x: plotFrame.midX, y: y)
+                }
+            }
+        }
     }
 
     @ChartContentBuilder
@@ -197,11 +205,11 @@ struct AppleSleepHypnogramView: View {
         ForEach(transitions) { transition in
             RuleMark(
                 x: .value("Transition", transition.hour),
-                yStart: .value("Start Row", transition.startRow - 0.24),
-                yEnd: .value("End Row", transition.endRow + 0.24)
+                yStart: .value("Start Row", transition.startRow - 0.30),
+                yEnd: .value("End Row", transition.endRow + 0.30)
             )
-            .foregroundStyle(SleepPalette.stageColor(for: transition.toStage).opacity(0.2))
-            .lineStyle(.init(lineWidth: 3, lineCap: .round))
+            .foregroundStyle(SleepPalette.stageColor(for: transition.toStage).opacity(0.45))
+            .lineStyle(.init(lineWidth: 1, lineCap: .round))
         }
     }
 
@@ -212,21 +220,19 @@ struct AppleSleepHypnogramView: View {
                 xStart: .value("Start Hour", range.startHour),
                 xEnd: .value("End Hour", range.endHour),
                 y: .value("Stage", range.stage.appleRow),
-                height: .fixed(22)
+                height: .fixed(34)
             )
-            .foregroundStyle(SleepPalette.stageColor(for: range.stage))
+            .foregroundStyle(
+                SleepPalette.stageColor(for: range.stage)
+                    .shadow(.inner(color: .white.opacity(0.15), radius: 2, x: 0, y: -1))
+            )
             .cornerRadius(8)
         }
     }
 
-    private func axisLabel(for hour: Double) -> String {
-        switch axisLabelMode {
-        case .offsetHours:
-            return "\(Int(hour))h"
-        case .clockTime:
-            let targetDate = baselineDate.addingTimeInterval(hour * 3600)
-            return Self.timeFormatter.string(from: targetDate)
-        }
+    private func clockLabel(for hour: Double) -> String {
+        let targetDate = baselineDate.addingTimeInterval(hour * 3600)
+        return Self.timeFormatter.string(from: targetDate)
     }
 
     private static let timeFormatter: DateFormatter = {
