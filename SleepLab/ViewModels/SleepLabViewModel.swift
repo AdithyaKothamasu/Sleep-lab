@@ -215,6 +215,19 @@ final class SleepLabViewModel: ObservableObject {
         return calendar.date(byAdding: .day, value: -1, to: normalized) ?? normalized
     }
 
+    /// Logs recorded for today's calendar date.
+    var todayLogs: [DayBehaviorLog] {
+        let today = calendar.startOfDay(for: Date())
+        return (try? behaviorRepository.fetchLogs(for: today)) ?? []
+    }
+
+    /// True when an existing sleep-day card already covers today's events
+    /// (meaning the standalone "Today" card should be hidden).
+    var isTodayCoveredBySleepDay: Bool {
+        let today = calendar.startOfDay(for: Date())
+        return sleepDays.contains { priorEventDay(forSleepDay: $0.dayStart) == today }
+    }
+
     func patternSelectionKey(for days: [DaySleepRecord]) -> String {
         days
             .map(\.dayStart)
