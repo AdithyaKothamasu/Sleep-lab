@@ -25,7 +25,7 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Sleep Lab does not write data now, but requests update access for future experimentation features.</string>
 	<key>PATTERN_API_BASE_URL</key>
-	<string></string>
+	<string>https://sleeplab-pattern-service.adithya261004.workers.dev</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
