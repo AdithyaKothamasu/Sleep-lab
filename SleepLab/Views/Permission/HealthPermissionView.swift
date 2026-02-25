@@ -21,7 +21,7 @@ struct HealthPermissionView: View {
                     )
                     .shadow(color: .black.opacity(0.14), radius: 8, x: 0, y: 4)
 
-                Text("Sleep Lab")
+                Text("REMLogic")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(SleepPalette.titleText)
 

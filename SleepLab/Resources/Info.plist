@@ -10,6 +10,8 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleDisplayName</key>
+	<string>REMLogic</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
@@ -21,9 +23,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Sleep Lab reads your Health data to visualize sleep patterns and compare outcomes.</string>
+	<string>REMLogic reads your Health data to visualize sleep patterns and compare outcomes.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Sleep Lab does not write data now, but requests update access for future experimentation features.</string>
+	<string>REMLogic does not write data now, but requests update access for future experimentation features.</string>
 	<key>PATTERN_API_BASE_URL</key>
 	<string>https://sleeplab-pattern-service.adithya261004.workers.dev</string>
 	<key>UIApplicationSceneManifest</key>
