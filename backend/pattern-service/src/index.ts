@@ -4,6 +4,9 @@ import { epochToIso, issueSignedToken, verifySignedToken } from "./auth/jwt";
 import { verifyEd25519Signature } from "./auth/signature";
 import { readConfig, type Env } from "./config";
 import { handleAnalyze } from "./routes/analyze";
+import { handleSync } from "./routes/sync";
+import { handleGetSleep, handleGetSleepByDate, handleGetSleepRange, handleGetSleepStats, handleGetEvents } from "./routes/agent-data";
+import { handleAgentRegister, handleAgentRevoke } from "./routes/agent-keys";
 import { errorResponse, jsonResponse, optionsResponse, parseJSON } from "./util/http";
 
 const challengeRequestSchema = z.object({
@@ -35,6 +38,8 @@ export default {
       return errorResponse(500, "Server misconfiguration", String(error));
     }
 
+    // ── Auth routes ────────────────────────────────────────────
+
     if (request.method === "POST" && url.pathname === "/v1/auth/challenge") {
       return handleChallenge(request, env, config.challengeSigningSecret);
     }
@@ -42,6 +47,8 @@ export default {
     if (request.method === "POST" && url.pathname === "/v1/auth/exchange") {
       return handleExchange(request, env, config.challengeSigningSecret, config.jwtSigningSecret);
     }
+
+    // ── Pattern analysis (existing) ────────────────────────────
 
     if (request.method === "POST" && url.pathname === "/v1/patterns/analyze") {
       const bearer = request.headers.get("Authorization");
@@ -60,6 +67,46 @@ export default {
       }
 
       return handleAnalyze(request, env, config);
+    }
+
+    // ── Agent key management (JWT auth) ────────────────────────
+
+    if (request.method === "POST" && url.pathname === "/v1/agent/register") {
+      return handleAgentRegister(request, env, config);
+    }
+
+    if (request.method === "DELETE" && url.pathname === "/v1/agent/revoke") {
+      return handleAgentRevoke(request, env, config);
+    }
+
+    // ── Data sync (JWT auth) ───────────────────────────────────
+
+    if (request.method === "POST" && url.pathname === "/v1/data/sync") {
+      return handleSync(request, env, config);
+    }
+
+    // ── Agent data queries (API key auth) ──────────────────────
+
+    if (request.method === "GET" && url.pathname === "/v1/data/sleep/stats") {
+      return handleGetSleepStats(request, env, config);
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/data/sleep/range") {
+      return handleGetSleepRange(request, env, config);
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/data/events") {
+      return handleGetEvents(request, env, config);
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/data/sleep") {
+      return handleGetSleep(request, env, config);
+    }
+
+    // Match /v1/data/sleep/YYYY-MM-DD
+    const dateMatch = url.pathname.match(/^\/v1\/data\/sleep\/(\d{4}-\d{2}-\d{2})$/);
+    if (request.method === "GET" && dateMatch) {
+      return handleGetSleepByDate(request, env, config, dateMatch[1]);
     }
 
     return errorResponse(404, "Not found");

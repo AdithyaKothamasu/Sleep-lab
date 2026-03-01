@@ -83,6 +83,7 @@ final class SleepLabViewModel: ObservableObject {
                     sleepDays = days
                     patternResultBySelectionKey.removeAll()
                     loadState = .ready
+                    syncToAgentIfEnabled()
                 } catch {
                     // If loading fails, reset the flag so the permission screen
                     // is shown again for the user to re-authorize
@@ -114,6 +115,7 @@ final class SleepLabViewModel: ObservableObject {
                     selectedDayIDs = Set(selectedDayIDs.prefix(5))
                 }
                 loadState = .ready
+                syncToAgentIfEnabled()
             } catch let error as HealthKitServiceError {
                 switch error {
                 case .authorizationDenied:
@@ -354,6 +356,36 @@ final class SleepLabViewModel: ObservableObject {
         }
 
         return PatternAnalysisPayload(selectedDates: dayPayloads)
+    }
+
+    // MARK: - Agent Sync
+
+    /// Build a sync payload for the agent service from all loaded sleep days.
+    func buildAgentSyncPayload() -> AgentSyncPayload {
+        let allLogs = Dictionary(
+            uniqueKeysWithValues: sleepDays.map { ($0.dayStart, logs(forSleepDay: $0.dayStart)) }
+        )
+        let patternPayload = buildPatternPayload(days: sleepDays, logsBySleepDay: allLogs)
+        return AgentSyncPayload(days: patternPayload.selectedDates)
+    }
+
+    /// Trigger an agent sync if agent access is enabled. Called after data loads.
+    func syncToAgentIfEnabled() {
+        guard AgentSettings.isEnabled, !sleepDays.isEmpty else { return }
+
+        Task.detached {
+            let service = AgentSyncService()
+            let payload = await self.buildAgentSyncPayload()
+            do {
+                let _ = try await service.syncDays(payload)
+                await MainActor.run {
+                    AgentSettings.lastSyncDate = Date()
+                }
+            } catch {
+                // Silent failure — sync is best-effort
+                print("[AgentSync] Background sync failed: \(error.localizedDescription)")
+            }
+        }
     }
 }
 

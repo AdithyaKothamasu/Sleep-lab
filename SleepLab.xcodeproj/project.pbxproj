@@ -18,6 +18,8 @@
 		4D3C23A0079E531793E7396D /* SleepLabViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 238B3A50D6F7728415C0037D /* SleepLabViewModel.swift */; };
 		61198B96FA183E2D1F8258A1 /* SleepPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B78A588CB84CBBB11E5FE6 /* SleepPalette.swift */; };
 		7D084D2A512DAC290984BB2C /* LogBehaviorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF7A0266298B6B59C7F6CFA0 /* LogBehaviorSheet.swift */; };
+		89549E272F54255900A8BED1 /* AgentSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89549E262F54255900A8BED1 /* AgentSyncService.swift */; };
+		89549E2A2F5425BA00A8BED1 /* AgentSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89549E292F5425BA00A8BED1 /* AgentSettingsView.swift */; };
 		AFB95BCDCAF9830378F2FB0C /* HealthPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 250E718C3D6A7EAB86D48D6E /* HealthPermissionView.swift */; };
 		B65F60A55056FF91804E1234 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F833AD7B24B1270E19B699E /* HealthKitService.swift */; };
 		CB7DAD9591E9EF9D0BFFFBF7 /* SleepDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41B5E50001CD542BA251B32 /* SleepDetailView.swift */; };
@@ -43,6 +45,8 @@
 		6AE5635412AB0E1D24566544 /* AppRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppRootView.swift; path = App/AppRootView.swift; sourceTree = "<group>"; };
 		761A7705CC7BCA8A6B212287 /* ComparisonView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ComparisonView.swift; path = Views/Comparison/ComparisonView.swift; sourceTree = "<group>"; };
 		861EAFD8DDB6B6B08099C820 /* PersistenceController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PersistenceController.swift; path = Core/PersistenceController.swift; sourceTree = "<group>"; };
+		89549E262F54255900A8BED1 /* AgentSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSyncService.swift; sourceTree = "<group>"; };
+		89549E292F5425BA00A8BED1 /* AgentSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSettingsView.swift; sourceTree = "<group>"; };
 		ABE2E2C1FAD92BA97E2A0CC5 /* SleepDayCardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SleepDayCardView.swift; path = Views/Timeline/SleepDayCardView.swift; sourceTree = "<group>"; };
 		BC0DAD8268F45B496A471A38 /* AddTagSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AddTagSheet.swift; path = Views/Tags/AddTagSheet.swift; sourceTree = "<group>"; };
 		C41B5E50001CD542BA251B32 /* SleepDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SleepDetailView.swift; path = Views/Detail/SleepDetailView.swift; sourceTree = "<group>"; };
@@ -66,6 +70,7 @@
 		1584224B17659C0E91D3431B /* SleepLab */ = {
 			isa = PBXGroup;
 			children = (
+				89549E262F54255900A8BED1 /* AgentSyncService.swift */,
 				F9C5C483D73BE0EC920E93F6 /* SleepLabApp.swift */,
 				6AE5635412AB0E1D24566544 /* AppRootView.swift */,
 				861EAFD8DDB6B6B08099C820 /* PersistenceController.swift */,
@@ -85,8 +90,17 @@
 				43F815F8D7346F1E87016C67 /* Assets.xcassets */,
 				1F81EE68E734FAD89495AC04 /* Info.plist */,
 				25E748C4923ECB029374B0FB /* SleepLab.entitlements */,
+				89549E282F54258C00A8BED1 /* Agent */,
 			);
 			path = SleepLab;
+			sourceTree = "<group>";
+		};
+		89549E282F54258C00A8BED1 /* Agent */ = {
+			isa = PBXGroup;
+			children = (
+				89549E292F5425BA00A8BED1 /* AgentSettingsView.swift */,
+			);
+			path = Agent;
 			sourceTree = "<group>";
 		};
 		AB33159657F38818B811CB19 /* Frameworks */ = {
@@ -205,8 +219,10 @@
 				E94EE9D42A02DF41075FE12E /* SleepDayCardView.swift in Sources */,
 				E84B84FE860E0E540E3F3346 /* ComparisonView.swift in Sources */,
 				CB7DAD9591E9EF9D0BFFFBF7 /* SleepDetailView.swift in Sources */,
+				89549E272F54255900A8BED1 /* AgentSyncService.swift in Sources */,
 				F8BD1400D1A180E8EDE35CB9 /* AddTagSheet.swift in Sources */,
 				7D084D2A512DAC290984BB2C /* LogBehaviorSheet.swift in Sources */,
+				89549E2A2F5425BA00A8BED1 /* AgentSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

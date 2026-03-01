@@ -127,6 +127,15 @@ struct TimelineView: View {
                     }
                     .disabled(!viewModel.canCompare)
                 }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        AgentSettingsView()
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Agent Settings")
+                }
             }
             .navigationDestination(isPresented: $showComparison) {
                 ComparisonView(days: viewModel.selectedDays, alignment: $viewModel.comparisonAlignment)

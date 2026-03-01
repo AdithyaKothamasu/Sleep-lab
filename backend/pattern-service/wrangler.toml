@@ -6,3 +6,13 @@ compatibility_date = "2025-02-20"
 binding = "INSTALL_KEYS"
 id = "25ba15144eb94290b14d3d30266c4758"
 preview_id = "93028b6b2de34c3581026eddc1ab1bba"
+
+[[kv_namespaces]]
+binding = "AGENT_KEYS"
+id = "37e41d69462d4c4ebca1e099c8fd9a83"
+preview_id = "b1f77014806245deb6cdd95e707a008e"
+
+[[d1_databases]]
+binding = "SLEEP_DATA"
+database_name = "sleeplab-sleep-data"
+database_id = "2a51b399-c54b-474f-ada8-bfec047c31b9"
