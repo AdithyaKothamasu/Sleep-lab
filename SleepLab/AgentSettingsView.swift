@@ -315,7 +315,7 @@ struct AgentSettingsView: View {
 
         do {
             let payload = viewModel.buildAgentSyncPayload()
-            let response = try await agentSyncService.syncDays(payload)
+            _ = try await agentSyncService.syncDays(payload)
             AgentSettings.lastSyncDate = Date()
             updateLastSyncText()
         } catch {
