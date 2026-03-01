@@ -217,10 +217,22 @@ final class SleepLabViewModel: ObservableObject {
         return calendar.date(byAdding: .day, value: -1, to: normalized) ?? normalized
     }
 
+    /// Workouts for the event day (prior day), matching behavior event alignment.
+    func workouts(forSleepDay dayStart: Date) -> [WorkoutDetail] {
+        let eventDay = priorEventDay(forSleepDay: dayStart)
+        return sleepDays.first(where: { calendar.isDate($0.dayStart, inSameDayAs: eventDay) })?.workouts ?? []
+    }
+
     /// Logs recorded for today's calendar date.
     var todayLogs: [DayBehaviorLog] {
         let today = calendar.startOfDay(for: Date())
         return (try? behaviorRepository.fetchLogs(for: today)) ?? []
+    }
+
+    /// Workouts for today's calendar date.
+    var todayWorkouts: [WorkoutDetail] {
+        let today = calendar.startOfDay(for: Date())
+        return sleepDays.first(where: { calendar.isDate($0.dayStart, inSameDayAs: today) })?.workouts ?? []
     }
 
     /// True when an existing sleep-day card already covers today's events
@@ -336,6 +348,26 @@ final class SleepLabViewModel: ObservableObject {
                 )
             }
 
+            // Auto-generate workout events from Apple Watch data
+            let workoutEvents: [PatternEventPayload] = day.workouts.map { workout in
+                var noteParts = ["\(Int(workout.durationMinutes)) min", workout.intensity + " Intensity"]
+                if let cal = workout.caloriesBurned {
+                    noteParts.append("\(Int(cal)) cal")
+                }
+
+                var minutesBeforeSleep: Double? = nil
+                if let mainSleepStart = mainSleepWindow?.start {
+                    minutesBeforeSleep = mainSleepStart.timeIntervalSince(workout.endDate) / 60
+                }
+
+                return PatternEventPayload(
+                    name: "Workout: \(workout.activityType)",
+                    timestampISO: PatternFormatters.isoFormatter.string(from: workout.endDate),
+                    note: noteParts.joined(separator: " · "),
+                    minutesBeforeMainSleepStart: minutesBeforeSleep
+                )
+            }
+
             return PatternDayPayload(
                 dayLabel: day.dayStart.formatted(.dateTime.month(.abbreviated).day()),
                 dayStartISO: PatternFormatters.isoFormatter.string(from: day.dayStart),
@@ -347,11 +379,13 @@ final class SleepLabViewModel: ObservableObject {
                     averageHeartRate: day.averageHeartRate,
                     averageHRV: day.averageHRV,
                     averageRespiratoryRate: day.averageRespiratoryRate,
-                    workoutMinutes: day.workoutMinutes
+                    workoutMinutes: day.workoutMinutes,
+                    averageSpO2: day.averageSpO2,
+                    restingHeartRate: day.restingHeartRate
                 ),
                 stageDurations: stageDurations,
                 segments: segments,
-                events: events
+                events: events + workoutEvents
             )
         }
 
@@ -361,11 +395,14 @@ final class SleepLabViewModel: ObservableObject {
     // MARK: - Agent Sync
 
     /// Build a sync payload for the agent service from all loaded sleep days.
+    /// Uses each day's actual logs (NOT prior-day shifted — that's only for UI).
     func buildAgentSyncPayload() -> AgentSyncPayload {
-        let allLogs = Dictionary(
-            uniqueKeysWithValues: sleepDays.map { ($0.dayStart, logs(forSleepDay: $0.dayStart)) }
+        let actualLogs = Dictionary(
+            uniqueKeysWithValues: sleepDays.map { day in
+                (day.dayStart, (try? behaviorRepository.fetchLogs(for: day.dayStart)) ?? [])
+            }
         )
-        let patternPayload = buildPatternPayload(days: sleepDays, logsBySleepDay: allLogs)
+        let patternPayload = buildPatternPayload(days: sleepDays, logsBySleepDay: actualLogs)
         return AgentSyncPayload(days: patternPayload.selectedDates)
     }
 

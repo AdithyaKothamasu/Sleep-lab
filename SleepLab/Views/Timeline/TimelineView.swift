@@ -54,6 +54,7 @@ struct TimelineView: View {
                                 if !viewModel.isTodayCoveredBySleepDay {
                                     TodayEventCardView(
                                         logs: viewModel.todayLogs,
+                                        workouts: viewModel.todayWorkouts,
                                         colorHexByEventName: eventColorHexByName
                                     )
                                 }
@@ -66,6 +67,7 @@ struct TimelineView: View {
                                             sleepDay: day,
                                             eventDayStart: viewModel.priorEventDay(forSleepDay: day.dayStart),
                                             logs: viewModel.logs(forSleepDay: day.dayStart),
+                                            workouts: viewModel.workouts(forSleepDay: day.dayStart),
                                             colorHexByEventName: eventColorHexByName,
                                             isSelected: viewModel.selectedDayIDs.contains(day.id),
                                             onToggleSelection: { viewModel.toggleSelection(for: day) }
@@ -215,12 +217,13 @@ private struct DayEventCompactCardView: View {
     let sleepDay: DaySleepRecord
     let eventDayStart: Date
     let logs: [DayBehaviorLog]
+    let workouts: [WorkoutDetail]
     let colorHexByEventName: [String: String]
     let isSelected: Bool
     let onToggleSelection: () -> Void
 
-    private var groupedEvents: [(name: String, color: Color, times: [Date])] {
-        Dictionary(grouping: logs, by: \.tagName)
+    private var allEvents: [(name: String, color: Color, times: [Date])] {
+        var grouped = Dictionary(grouping: logs, by: \.tagName)
             .map { name, items in
                 (
                     name: name,
@@ -228,9 +231,19 @@ private struct DayEventCompactCardView: View {
                     times: items.map(\.loggedAt).sorted()
                 )
             }
-            .sorted {
-                ($0.times.first ?? .distantPast) < ($1.times.first ?? .distantPast)
-            }
+
+        // Add workouts as event entries
+        for workout in workouts {
+            grouped.append((
+                name: workout.activityType,
+                color: Color(hex: "#30D158"),
+                times: [workout.endDate]
+            ))
+        }
+
+        return grouped.sorted {
+            ($0.times.first ?? .distantPast) < ($1.times.first ?? .distantPast)
+        }
     }
 
     var body: some View {
@@ -256,13 +269,13 @@ private struct DayEventCompactCardView: View {
                 .buttonStyle(.plain)
             }
 
-            if groupedEvents.isEmpty {
+            if allEvents.isEmpty {
                 Text("No events recorded.")
                     .font(.caption)
                     .foregroundStyle(SleepPalette.mutedText)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(groupedEvents, id: \.name) { group in
+                    ForEach(allEvents, id: \.name) { group in
                         HStack(spacing: 8) {
                             RoundedRectangle(cornerRadius: 2, style: .continuous)
                                 .fill(group.color)
@@ -308,10 +321,11 @@ private struct DayEventCompactCardView: View {
 
 private struct TodayEventCardView: View {
     let logs: [DayBehaviorLog]
+    let workouts: [WorkoutDetail]
     let colorHexByEventName: [String: String]
 
-    private var groupedEvents: [(name: String, color: Color, times: [Date])] {
-        Dictionary(grouping: logs, by: \.tagName)
+    private var allEvents: [(name: String, color: Color, times: [Date])] {
+        var grouped = Dictionary(grouping: logs, by: \.tagName)
             .map { name, items in
                 (
                     name: name,
@@ -319,9 +333,18 @@ private struct TodayEventCardView: View {
                     times: items.map(\.loggedAt).sorted()
                 )
             }
-            .sorted {
-                ($0.times.first ?? .distantPast) < ($1.times.first ?? .distantPast)
-            }
+
+        for workout in workouts {
+            grouped.append((
+                name: workout.activityType,
+                color: Color(hex: "#30D158"),
+                times: [workout.endDate]
+            ))
+        }
+
+        return grouped.sorted {
+            ($0.times.first ?? .distantPast) < ($1.times.first ?? .distantPast)
+        }
     }
 
     var body: some View {
@@ -336,13 +359,13 @@ private struct TodayEventCardView: View {
                     .foregroundStyle(SleepPalette.mutedText)
             }
 
-            if groupedEvents.isEmpty {
+            if allEvents.isEmpty {
                 Text("No events recorded yet today.")
                     .font(.caption)
                     .foregroundStyle(SleepPalette.mutedText)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(groupedEvents, id: \.name) { group in
+                    ForEach(allEvents, id: \.name) { group in
                         HStack(spacing: 8) {
                             RoundedRectangle(cornerRadius: 2, style: .continuous)
                                 .fill(group.color)
@@ -366,6 +389,7 @@ private struct TodayEventCardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(SleepPalette.panelBackground)
         .overlay(

@@ -29,7 +29,9 @@ const syncSleepMetricsSchema = z.object({
     averageHeartRate: z.number().nullable(),
     averageHRV: z.number().nullable(),
     averageRespiratoryRate: z.number().nullable(),
-    workoutMinutes: z.number().nullable()
+    workoutMinutes: z.number().nullable(),
+    averageSpO2: z.number().nullable().optional(),
+    restingHeartRate: z.number().nullable().optional()
 });
 
 const syncDaySchema = z.object({

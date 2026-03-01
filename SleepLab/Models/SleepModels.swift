@@ -161,6 +161,16 @@ struct HypnogramTransition: Identifiable, Hashable {
     }
 }
 
+struct WorkoutDetail: Identifiable, Hashable {
+    let id = UUID()
+    let activityType: String
+    let startDate: Date
+    let endDate: Date
+    let durationMinutes: Double
+    let intensity: String
+    let caloriesBurned: Double?
+}
+
 struct DaySleepRecord: Identifiable, Hashable {
     let dayStart: Date
     var segments: [SleepSegment]
@@ -168,6 +178,9 @@ struct DaySleepRecord: Identifiable, Hashable {
     var averageHRV: Double?
     var averageRespiratoryRate: Double?
     var workoutMinutes: Double?
+    var averageSpO2: Double?
+    var restingHeartRate: Double?
+    var workouts: [WorkoutDetail]
 
     var id: Date { dayStart }
 
@@ -438,6 +451,8 @@ struct PatternSleepMetricsPayload: Codable {
     let averageHRV: Double?
     let averageRespiratoryRate: Double?
     let workoutMinutes: Double?
+    let averageSpO2: Double?
+    let restingHeartRate: Double?
 }
 
 struct PatternStageDurationPayload: Codable {

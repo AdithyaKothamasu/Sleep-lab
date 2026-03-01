@@ -37,7 +37,9 @@ actor HealthKitService {
         let quantityIdentifiers: [HKQuantityTypeIdentifier] = [
             .heartRate,
             .heartRateVariabilitySDNN,
-            .respiratoryRate
+            .respiratoryRate,
+            .oxygenSaturation,
+            .restingHeartRate
         ]
 
         for identifier in quantityIdentifiers {
@@ -97,7 +99,10 @@ actor HealthKitService {
                 averageHeartRate: nil,
                 averageHRV: nil,
                 averageRespiratoryRate: nil,
-                workoutMinutes: nil
+                workoutMinutes: nil,
+                averageSpO2: nil,
+                restingHeartRate: nil,
+                workouts: []
             )
 
             if !segments.isEmpty {
@@ -117,9 +122,26 @@ actor HealthKitService {
                     unit: HKUnit.count().unitDivided(by: .minute()),
                     interval: interval
                 )
+                record.averageSpO2 = try await fetchAverageQuantity(
+                    for: .oxygenSaturation,
+                    unit: HKUnit.percent(),
+                    interval: interval
+                )
+                // SpO2 comes as a fraction (0.0-1.0), convert to percentage
+                if let spo2 = record.averageSpO2 {
+                    record.averageSpO2 = (spo2 * 100).rounded(to: 1)
+                }
             }
 
-            record.workoutMinutes = try await fetchWorkoutMinutes(start: dayStart, end: dayEnd)
+            record.restingHeartRate = try await fetchAverageQuantity(
+                for: .restingHeartRate,
+                unit: HKUnit.count().unitDivided(by: .minute()),
+                interval: DateInterval(start: dayStart, end: dayEnd)
+            )
+
+            let workoutDetails = try await fetchWorkoutDetails(start: dayStart, end: dayEnd)
+            record.workouts = workoutDetails
+            record.workoutMinutes = workoutDetails.reduce(0) { $0 + $1.durationMinutes }
             dayRecords.append(record)
         }
 
@@ -175,7 +197,7 @@ actor HealthKitService {
         }
     }
 
-    private func fetchWorkoutMinutes(start: Date, end: Date) async throws -> Double {
+    private func fetchWorkoutDetails(start: Date, end: Date) async throws -> [WorkoutDetail] {
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
         let workoutType = HKObjectType.workoutType()
 
@@ -187,11 +209,70 @@ actor HealthKitService {
                 }
 
                 let workouts = (samples as? [HKWorkout]) ?? []
-                let totalMinutes = workouts.reduce(0) { $0 + ($1.duration / 60) }
-                continuation.resume(returning: totalMinutes)
+                let details = workouts.map { workout -> WorkoutDetail in
+                    let durationMinutes = workout.duration / 60
+                    let calories = workout.totalEnergyBurned?.doubleValue(for: .kilocalorie())
+                    let intensity = Self.workoutIntensity(for: workout)
+
+                    return WorkoutDetail(
+                        activityType: Self.activityTypeName(workout.workoutActivityType),
+                        startDate: workout.startDate,
+                        endDate: workout.endDate,
+                        durationMinutes: durationMinutes.rounded(to: 1),
+                        intensity: intensity,
+                        caloriesBurned: calories.map { $0.rounded(to: 0) }
+                    )
+                }
+                continuation.resume(returning: details)
             }
 
             healthStore.execute(query)
+        }
+    }
+
+    private static func workoutIntensity(for workout: HKWorkout) -> String {
+        // Estimate intensity from calories per minute
+        let durationMinutes = workout.duration / 60
+        guard durationMinutes > 0,
+              let calories = workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()) else {
+            return "Moderate"
+        }
+
+        let calPerMin = calories / durationMinutes
+        if calPerMin >= 10 {
+            return "High"
+        } else if calPerMin >= 5 {
+            return "Moderate"
+        } else {
+            return "Low"
+        }
+    }
+
+    private static func activityTypeName(_ type: HKWorkoutActivityType) -> String {
+        switch type {
+        case .running: return "Running"
+        case .cycling: return "Cycling"
+        case .swimming: return "Swimming"
+        case .walking: return "Walking"
+        case .hiking: return "Hiking"
+        case .yoga: return "Yoga"
+        case .functionalStrengthTraining, .traditionalStrengthTraining: return "Strength Training"
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .dance: return "Dance"
+        case .cooldown: return "Cooldown"
+        case .coreTraining: return "Core Training"
+        case .elliptical: return "Elliptical"
+        case .rowing: return "Rowing"
+        case .stairClimbing: return "Stair Climbing"
+        case .pilates: return "Pilates"
+        case .badminton: return "Badminton"
+        case .tennis: return "Tennis"
+        case .tableTennis: return "Table Tennis"
+        case .soccer: return "Soccer"
+        case .basketball: return "Basketball"
+        case .cricket: return "Cricket"
+        case .mixedCardio: return "Mixed Cardio"
+        default: return "Workout"
         }
     }
 
@@ -215,5 +296,12 @@ actor HealthKitService {
 
             cursor = segmentEnd
         }
+    }
+}
+
+private extension Double {
+    func rounded(to places: Int) -> Double {
+        let multiplier = pow(10.0, Double(places))
+        return (self * multiplier).rounded() / multiplier
     }
 }
