@@ -395,11 +395,11 @@ final class SleepLabViewModel: ObservableObject {
     // MARK: - Agent Sync
 
     /// Build a sync payload for the agent service from all loaded sleep days.
-    /// Uses each day's actual logs (NOT prior-day shifted — that's only for UI).
+    /// Uses prior-day-shifted logs to match the UI's event–sleep-night alignment.
     func buildAgentSyncPayload() -> AgentSyncPayload {
         let actualLogs = Dictionary(
             uniqueKeysWithValues: sleepDays.map { day in
-                (day.dayStart, (try? behaviorRepository.fetchLogs(for: day.dayStart)) ?? [])
+                (day.dayStart, (try? behaviorRepository.fetchLogs(for: priorEventDay(forSleepDay: day.dayStart))) ?? [])
             }
         )
         let patternPayload = buildPatternPayload(days: sleepDays, logsBySleepDay: actualLogs)

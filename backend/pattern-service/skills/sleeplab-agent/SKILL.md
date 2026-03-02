@@ -87,6 +87,12 @@ All responses are JSON. Sleep data includes:
 - **segments**: Individual sleep stage segments with start/end timestamps
 - **events**: Behavior logs like caffeine, dinner, workouts with timestamps
 
+## Important: Timezone & Date Handling
+
+All timestamps in the API (`dayStartISO`, `timestampISO`, `mainSleepStartISO`, etc.) are in **UTC (Z)**. The `date` key on each day entry is derived from the UTC representation of the user's local midnight, which may be **one calendar day behind** the user's actual local date.
+
+**When presenting dates to the user**, always convert UTC timestamps to the user's local timezone to get the correct calendar date. Do not rely on the `date` key alone — instead, parse `dayStartISO` or individual event `timestampISO` fields and convert them to local time. For example, a `date` of `"2026-02-28"` with `dayStartISO: "2026-02-28T18:30:00.000Z"` means the actual local date is `2026-03-01` (UTC+5:30).
+
 ## Response Guidelines
 
 When discussing sleep data with the user:
