@@ -107,22 +107,22 @@ actor HealthKitService {
 
             if !segments.isEmpty {
                 let interval = DateInterval(start: segments.first?.startDate ?? dayStart, end: segments.last?.endDate ?? dayEnd)
-                record.averageHeartRate = try await fetchAverageQuantity(
+                record.averageHeartRate = try? await fetchAverageQuantity(
                     for: .heartRate,
                     unit: HKUnit.count().unitDivided(by: .minute()),
                     interval: interval
                 )
-                record.averageHRV = try await fetchAverageQuantity(
+                record.averageHRV = try? await fetchAverageQuantity(
                     for: .heartRateVariabilitySDNN,
                     unit: HKUnit.secondUnit(with: .milli),
                     interval: interval
                 )
-                record.averageRespiratoryRate = try await fetchAverageQuantity(
+                record.averageRespiratoryRate = try? await fetchAverageQuantity(
                     for: .respiratoryRate,
                     unit: HKUnit.count().unitDivided(by: .minute()),
                     interval: interval
                 )
-                record.averageSpO2 = try await fetchAverageQuantity(
+                record.averageSpO2 = try? await fetchAverageQuantity(
                     for: .oxygenSaturation,
                     unit: HKUnit.percent(),
                     interval: interval
@@ -133,13 +133,13 @@ actor HealthKitService {
                 }
             }
 
-            record.restingHeartRate = try await fetchAverageQuantity(
+            record.restingHeartRate = try? await fetchAverageQuantity(
                 for: .restingHeartRate,
                 unit: HKUnit.count().unitDivided(by: .minute()),
                 interval: DateInterval(start: dayStart, end: dayEnd)
             )
 
-            let workoutDetails = try await fetchWorkoutDetails(start: dayStart, end: dayEnd)
+            let workoutDetails = (try? await fetchWorkoutDetails(start: dayStart, end: dayEnd)) ?? []
             record.workouts = workoutDetails
             record.workoutMinutes = workoutDetails.reduce(0) { $0 + $1.durationMinutes }
             dayRecords.append(record)

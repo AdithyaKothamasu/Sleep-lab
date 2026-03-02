@@ -7,6 +7,7 @@ import { handleAnalyze } from "./routes/analyze";
 import { handleSync } from "./routes/sync";
 import { handleGetSleep, handleGetSleepByDate, handleGetSleepRange, handleGetSleepStats, handleGetEvents } from "./routes/agent-data";
 import { handleAgentRegister, handleAgentRevoke } from "./routes/agent-keys";
+import { handleGetInstructions } from "./routes/agent-instructions";
 import { errorResponse, jsonResponse, optionsResponse, parseJSON } from "./util/http";
 
 const challengeRequestSchema = z.object({
@@ -77,6 +78,10 @@ export default {
 
     if (request.method === "DELETE" && url.pathname === "/v1/agent/revoke") {
       return handleAgentRevoke(request, env, config);
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/agent/instructions") {
+      return handleGetInstructions(request, env, config);
     }
 
     // ── Data sync (JWT auth) ───────────────────────────────────
