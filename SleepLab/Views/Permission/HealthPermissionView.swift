@@ -66,12 +66,18 @@ struct HealthPermissionView: View {
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
+            .simultaneousGesture(TapGesture().onEnded {
+                AppHaptics.impact(.medium)
+            })
             .disabled(isRequesting)
 
             if isDenied {
                 Button("Open iOS Settings", action: onOpenSettings)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(SleepPalette.primary)
+                    .simultaneousGesture(TapGesture().onEnded {
+                        AppHaptics.impact(.light)
+                    })
             }
         }
         .padding(24)

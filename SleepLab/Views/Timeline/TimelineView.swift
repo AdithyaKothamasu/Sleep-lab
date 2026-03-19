@@ -11,7 +11,6 @@ struct TimelineView: View {
     @EnvironmentObject private var viewModel: SleepLabViewModel
     @State private var showComparison = false
     @State private var showLogEvent = false
-    @State private var showAddEventType = false
     @State private var displayMode: TimelineDisplayMode = .sleepCards
     @State private var eventsModeRefreshKey = UUID()
 
@@ -48,6 +47,9 @@ struct TimelineView: View {
                                     )
                                 }
                                 .buttonStyle(.plain)
+                                .simultaneousGesture(TapGesture().onEnded {
+                                    AppHaptics.impact(.light)
+                                })
                             }
                         } else {
                             Group {
@@ -74,6 +76,9 @@ struct TimelineView: View {
                                         )
                                     }
                                     .buttonStyle(.plain)
+                                    .simultaneousGesture(TapGesture().onEnded {
+                                        AppHaptics.impact(.light)
+                                    })
                                 }
                             }
                             .id(eventsModeRefreshKey)
@@ -102,63 +107,79 @@ struct TimelineView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            showLogEvent = true
-                        } label: {
-                            Label("Log Event", systemImage: "plus.circle")
-                        }
-                        .disabled(viewModel.events.isEmpty)
-
-                        Button {
-                            showAddEventType = true
-                        } label: {
-                            Label("New Event Type", systemImage: "tag")
-                        }
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                    }
-                    .accessibilityLabel("Add Event")
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showComparison = true
-                    } label: {
-                        Label("Compare (\(viewModel.selectedDayIDs.count))", systemImage: "square.stack.3d.up")
-                    }
-                    .disabled(!viewModel.canCompare)
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
                         AgentSettingsView()
                     } label: {
                         Image(systemName: "gearshape")
                     }
                     .accessibilityLabel("Agent Settings")
+                    .simultaneousGesture(TapGesture().onEnded {
+                        AppHaptics.impact(.light)
+                    })
                 }
+            }
+            .safeAreaInset(edge: .bottom) {
+                bottomFloatingBar
             }
             .navigationDestination(isPresented: $showComparison) {
                 ComparisonView(days: viewModel.selectedDays, alignment: $viewModel.comparisonAlignment)
-            }
-            .sheet(isPresented: $showAddEventType) {
-                AddTagSheet { name, colorHex in
-                    viewModel.addCustomTag(name: name, colorHex: colorHex)
-                }
             }
             .sheet(isPresented: $showLogEvent) {
                 LogBehaviorSheet(
                     events: viewModel.events,
                     initialDate: Date(),
-                    showsDatePicker: true
+                    showsDatePicker: true,
+                    onCreateEventType: { name, colorHex in
+                        viewModel.addCustomTag(name: name, colorHex: colorHex)
+                    }
                 ) { eventName, note, eventDateTime in
                     let dayStart = calendar.startOfDay(for: eventDateTime)
                     viewModel.addLog(for: dayStart, tagName: eventName, note: note, eventTime: eventDateTime)
                     eventsModeRefreshKey = UUID()
                 }
             }
+            .onChange(of: displayMode) {
+                AppHaptics.selection()
+            }
         }
+    }
+
+    private var bottomFloatingBar: some View {
+        HStack(spacing: 12) {
+            Button {
+                AppHaptics.impact(.light)
+                showLogEvent = true
+            } label: {
+                Label("Add Event", systemImage: "plus.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(FloatingActionButtonStyle(isPrimary: true, isEnabled: true))
+
+            Button {
+                AppHaptics.impact(.medium)
+                showComparison = true
+            } label: {
+                Label("Compare \(viewModel.selectedDayIDs.count)", systemImage: "square.stack.3d.up")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(FloatingActionButtonStyle(isPrimary: false, isEnabled: viewModel.canCompare))
+            .disabled(!viewModel.canCompare)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+        .background(
+            LinearGradient(
+                colors: [
+                    SleepPalette.chartPlotBackground.opacity(0),
+                    SleepPalette.chartPlotBackground.opacity(0.96)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 
     private var overviewPanel: some View {
@@ -210,6 +231,46 @@ struct TimelineView: View {
                 .stroke(SleepPalette.cardStroke, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+private struct FloatingActionButtonStyle: ButtonStyle {
+    let isPrimary: Bool
+    let isEnabled: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(isPrimary ? Color.white : (isEnabled ? SleepPalette.titleText : SleepPalette.mutedText))
+            .padding(.vertical, 16)
+            .padding(.horizontal, 18)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(backgroundColor(pressed: configuration.isPressed))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(borderColor, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(isPrimary ? 0.28 : 0.16), radius: isPrimary ? 18 : 12, x: 0, y: 8)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
+    }
+
+    private func backgroundColor(pressed: Bool) -> Color {
+        if isPrimary {
+            return pressed ? SleepPalette.primary.opacity(0.82) : SleepPalette.primary
+        }
+        if !isEnabled {
+            return SleepPalette.panelSecondary.opacity(0.55)
+        }
+        return pressed ? SleepPalette.panelSecondary.opacity(0.84) : SleepPalette.panelBackground
+    }
+
+    private var borderColor: Color {
+        if isPrimary {
+            return SleepPalette.primary.opacity(0.35)
+        }
+        return isEnabled ? SleepPalette.cardStroke : SleepPalette.cardStroke.opacity(0.45)
     }
 }
 

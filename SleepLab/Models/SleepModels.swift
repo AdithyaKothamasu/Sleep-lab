@@ -262,7 +262,7 @@ struct DaySleepRecord: Identifiable, Hashable {
         case .sleepStart:
             baseline = orderedSegments.first?.startDate
         case .clockTime:
-            baseline = orderedSegments.first?.startDate
+            baseline = dayStart
         }
         guard let baseline else { return [] }
 
@@ -337,8 +337,10 @@ struct DaySleepRecord: Identifiable, Hashable {
     /// The baseline date used for hypnogram hour calculations.
     func hypnogramBaseline(alignment: ComparisonAlignment) -> Date {
         switch alignment {
-        case .sleepStart, .clockTime:
+        case .sleepStart:
             return firstSegmentStart ?? dayStart
+        case .clockTime:
+            return dayStart
         }
     }
 }

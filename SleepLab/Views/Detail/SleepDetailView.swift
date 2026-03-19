@@ -36,11 +36,13 @@ struct SleepDetailView: View {
             presenting: pendingDeleteLog
         ) { log in
             Button("Delete", role: .destructive) {
+                AppHaptics.warning()
                 viewModel.deleteLog(log)
                 reloadLogs()
                 pendingDeleteLog = nil
             }
             Button("Cancel", role: .cancel) {
+                AppHaptics.impact(.light)
                 pendingDeleteLog = nil
             }
         } message: { log in
@@ -180,6 +182,7 @@ struct SleepDetailView: View {
                             Spacer()
 
                             Button(role: .destructive) {
+                                AppHaptics.selection()
                                 pendingDeleteLog = log
                             } label: {
                                 Image(systemName: "trash")

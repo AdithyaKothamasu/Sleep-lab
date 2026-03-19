@@ -7,14 +7,16 @@ struct LogBehaviorSheet: View {
     let events: [BehaviorTag]
     let initialDate: Date
     let showsDatePicker: Bool
+    let onCreateEventType: ((String, String) -> Void)?
     let onSave: (String, String?, Date) -> Void
 
     @State private var selectedEvent: String = ""
     @State private var note: String = ""
     @State private var eventTime: Date = Date()
+    @State private var showAddEventType = false
 
     private var selectableEvents: [BehaviorTag] {
-        let preferredOrder = ["Workout", "Dinner", "Caffeine"]
+        let preferredOrder = ["Dinner", "Caffeine", "Workout"]
         let filtered = events.filter { $0.name.caseInsensitiveCompare("Stress") != .orderedSame }
 
         return filtered.sorted { lhs, rhs in
@@ -31,18 +33,55 @@ struct LogBehaviorSheet: View {
         NavigationStack {
             Form {
                 Section("Event") {
-                    Picker("Event type", selection: $selectedEvent) {
-                        ForEach(selectableEvents, id: \.name) { event in
-                            HStack {
-                                Circle()
-                                    .fill(Color(hex: event.colorHex))
-                                    .frame(width: 10, height: 10)
-                                Text(event.name)
+                    if selectableEvents.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("No event types yet.")
+                                .font(.subheadline.weight(.semibold))
+
+                            Text("Create one here, then log your event without leaving this screen.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(selectableEvents, id: \.name) { event in
+                                    Button {
+                                        AppHaptics.selection()
+                                        selectedEvent = event.name
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            Circle()
+                                                .fill(Color(hex: event.colorHex))
+                                                .frame(width: 10, height: 10)
+
+                                            Text(event.name)
+                                                .font(.subheadline.weight(.semibold))
+                                        }
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 14)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                .fill(selectedEvent == event.name ? SleepPalette.panelSecondary : SleepPalette.chartPlotBackground)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                .stroke(selectedEvent == event.name ? Color(hex: event.colorHex) : SleepPalette.cardStroke, lineWidth: 1)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
-                            .tag(event.name)
                         }
                     }
-                    .pickerStyle(.menu)
+
+                    Button {
+                        AppHaptics.impact(.light)
+                        showAddEventType = true
+                    } label: {
+                        Label("New Event Type", systemImage: "tag.fill")
+                    }
                 }
 
                 Section("Time") {
@@ -77,12 +116,14 @@ struct LogBehaviorSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
+                        AppHaptics.impact(.light)
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        AppHaptics.impact(.medium)
                         onSave(selectedEvent, note, eventTime)
                         dismiss()
                     }
@@ -91,9 +132,21 @@ struct LogBehaviorSheet: View {
             }
             .onAppear {
                 if selectedEvent.isEmpty {
-                    selectedEvent = selectableEvents.first?.name ?? ""
+                    selectedEvent = defaultSelectedEventName()
                 }
                 eventTime = defaultEventTime()
+            }
+            .onChange(of: events.map(\.name)) {
+                if selectedEvent.isEmpty || !selectableEvents.contains(where: { $0.name == selectedEvent }) {
+                    selectedEvent = defaultSelectedEventName()
+                }
+            }
+            .sheet(isPresented: $showAddEventType) {
+                AddTagSheet { name, colorHex in
+                    let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    onCreateEventType?(cleanedName, colorHex)
+                    selectedEvent = cleanedName
+                }
             }
         }
     }
@@ -111,6 +164,13 @@ struct LogBehaviorSheet: View {
         combined.minute = roundedToFiveMinute(nowComponents.minute ?? 0)
 
         return calendar.date(from: combined) ?? Date()
+    }
+
+    private func defaultSelectedEventName() -> String {
+        if let dinner = selectableEvents.first(where: { $0.name.caseInsensitiveCompare("Dinner") == .orderedSame }) {
+            return dinner.name
+        }
+        return selectableEvents.first?.name ?? ""
     }
 
     private func roundedToFiveMinute(_ minute: Int) -> Int {

@@ -24,12 +24,12 @@ const syncSegmentSchema = z.object({
 const syncSleepMetricsSchema = z.object({
     totalSleepHours: z.number().min(0),
     awakeningCount: z.number().min(0),
-    mainSleepStartISO: z.string().datetime().nullable(),
-    mainSleepEndISO: z.string().datetime().nullable(),
-    averageHeartRate: z.number().nullable(),
-    averageHRV: z.number().nullable(),
-    averageRespiratoryRate: z.number().nullable(),
-    workoutMinutes: z.number().nullable(),
+    mainSleepStartISO: z.string().datetime().nullable().optional(),
+    mainSleepEndISO: z.string().datetime().nullable().optional(),
+    averageHeartRate: z.number().nullable().optional(),
+    averageHRV: z.number().nullable().optional(),
+    averageRespiratoryRate: z.number().nullable().optional(),
+    workoutMinutes: z.number().nullable().optional(),
     averageSpO2: z.number().nullable().optional(),
     restingHeartRate: z.number().nullable().optional()
 });
@@ -43,9 +43,23 @@ const syncDaySchema = z.object({
     events: z.array(syncEventSchema)
 });
 
-export const dataSyncRequestSchema = z.object({
+export const dataSyncRequestSchema = z.preprocess((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return value;
+    }
+
+    const record = value as Record<string, unknown>;
+    if (record.days == null && Array.isArray(record.selectedDates)) {
+        return {
+            ...record,
+            days: record.selectedDates
+        };
+    }
+
+    return value;
+}, z.object({
     days: z.array(syncDaySchema).min(1).max(30)
-});
+}));
 
 export type DataSyncRequest = z.infer<typeof dataSyncRequestSchema>;
 export type SyncDay = z.infer<typeof syncDaySchema>;

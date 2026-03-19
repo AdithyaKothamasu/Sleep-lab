@@ -59,12 +59,12 @@ struct ComparisonView: View {
 
     private var allEventPoints: [EventTimelinePoint] {
         orderedDays.flatMap { day in
-            let logs = viewModel.logs(forSleepDay: day.dayStart)
-            return logs.map { log in
+            let events = viewModel.comparisonEvents(forSleepDay: day.dayStart)
+            return events.map { event in
                 EventTimelinePoint(
                     dayLabel: day.dayStart.formatted(.dateTime.month(.abbreviated).day()),
-                    hour: eventHour(for: log, on: day),
-                    eventName: log.tagName
+                    hour: eventHour(for: event, on: day),
+                    eventName: event.tagName
                 )
             }
         }
@@ -115,6 +115,12 @@ struct ComparisonView: View {
         }
         .onChange(of: eventNames) {
             initializeEventFilters()
+        }
+        .onChange(of: alignment) {
+            AppHaptics.selection()
+        }
+        .onChange(of: aiInsightsEnabled) {
+            AppHaptics.selection()
         }
         .task(id: analysisTaskID) {
             await viewModel.analyzePatterns(for: orderedDays, includeAIInsights: aiInsightsEnabled)
@@ -232,9 +238,9 @@ struct ComparisonView: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
-                        ForEach(eventNames, id: \.self) { eventName in
-                            Button {
-                                toggleEvent(eventName)
+                    ForEach(eventNames, id: \.self) { eventName in
+                        Button {
+                            toggleEvent(eventName)
                             } label: {
                                 HStack(spacing: 6) {
                                     Circle()
@@ -567,7 +573,7 @@ struct ComparisonView: View {
     }
 
     private func dayEventTimings(for day: DaySleepRecord) -> [(eventName: String, hour: Double, extraCount: Int)] {
-        let dayLogs = viewModel.logs(forSleepDay: day.dayStart)
+        let dayLogs = viewModel.comparisonEvents(forSleepDay: day.dayStart)
         let sleepStart = mainSleepWindow(for: day)?.start
 
         var entries: [(eventName: String, hour: Double, extraCount: Int)] = []
@@ -707,6 +713,7 @@ struct ComparisonView: View {
     }
 
     private func toggleStage(_ stage: SleepStage) {
+        AppHaptics.selection()
         if visibleStages.contains(stage) {
             visibleStages.remove(stage)
         } else {
@@ -715,6 +722,7 @@ struct ComparisonView: View {
     }
 
     private func toggleEvent(_ eventName: String) {
+        AppHaptics.selection()
         if visibleEventNames.contains(eventName) {
             visibleEventNames.remove(eventName)
         } else {

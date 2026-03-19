@@ -38,6 +38,7 @@ struct AddTagSheet: View {
                                         }
                                     }
                                     .onTapGesture {
+                                        AppHaptics.selection()
                                         colorHex = hex
                                     }
                             }
@@ -49,12 +50,14 @@ struct AddTagSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
+                        AppHaptics.impact(.light)
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        AppHaptics.impact(.medium)
                         onSave(name, colorHex)
                         dismiss()
                     }

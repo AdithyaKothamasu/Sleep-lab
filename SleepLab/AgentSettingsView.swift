@@ -49,7 +49,10 @@ struct AgentSettingsView: View {
             updateLastSyncText()
         }
         .alert("Error", isPresented: .constant(errorMessage != nil)) {
-            Button("OK") { errorMessage = nil }
+            Button("OK") {
+                AppHaptics.impact(.light)
+                errorMessage = nil
+            }
         } message: {
             Text(errorMessage ?? "")
         }
@@ -117,6 +120,7 @@ struct AgentSettingsView: View {
                 Toggle("", isOn: $isEnabled)
                     .labelsHidden()
                     .onChange(of: isEnabled) { _, newValue in
+                        AppHaptics.selection()
                         handleToggle(newValue)
                     }
             }
@@ -151,6 +155,7 @@ struct AgentSettingsView: View {
                 .foregroundStyle(SleepPalette.mutedText)
 
             Button {
+                AppHaptics.impact(.light)
                 let bootstrapText = """
                 \(connectionCode)
 
@@ -226,6 +231,7 @@ struct AgentSettingsView: View {
             }
 
             Button {
+                AppHaptics.impact(.light)
                 Task { await triggerSync() }
             } label: {
                 HStack {
@@ -264,6 +270,7 @@ struct AgentSettingsView: View {
                 .foregroundStyle(SleepPalette.mutedText)
 
             Button(role: .destructive) {
+                AppHaptics.warning()
                 Task { await disconnect() }
             } label: {
                 HStack {
@@ -307,16 +314,19 @@ struct AgentSettingsView: View {
                     AgentSettings.isEnabled = true
                     connectionCode = response.connectionCode
                     isRegistering = false
+                    AppHaptics.success()
                 } catch {
                     isEnabled = false
                     AgentSettings.isEnabled = false
                     errorMessage = error.localizedDescription
                     isRegistering = false
+                    AppHaptics.error()
                 }
             }
         } else {
             // Just disable without revoking (user might want to re-enable)
             AgentSettings.isEnabled = false
+            AppHaptics.impact(.light)
         }
     }
 
@@ -331,8 +341,10 @@ struct AgentSettingsView: View {
             _ = try await agentSyncService.syncDays(payload)
             AgentSettings.lastSyncDate = Date()
             updateLastSyncText()
+            AppHaptics.success()
         } catch {
             errorMessage = error.localizedDescription
+            AppHaptics.error()
         }
     }
 
@@ -345,8 +357,10 @@ struct AgentSettingsView: View {
             AgentSettings.clearAll()
             isEnabled = false
             connectionCode = ""
+            AppHaptics.success()
         } catch {
             errorMessage = error.localizedDescription
+            AppHaptics.error()
         }
     }
 

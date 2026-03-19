@@ -98,6 +98,7 @@ final class SleepLabViewModel: ObservableObject {
     func requestAccessAndLoadTimeline() {
         guard loadState != .loading && loadState != .requestingAuthorization else { return }
 
+        AppHaptics.impact(.medium)
         loadState = .requestingAuthorization
         errorMessage = nil
 
@@ -115,6 +116,7 @@ final class SleepLabViewModel: ObservableObject {
                     selectedDayIDs = Set(selectedDayIDs.prefix(5))
                 }
                 loadState = .ready
+                AppHaptics.success()
                 syncToAgentIfEnabled()
             } catch let error as HealthKitServiceError {
                 switch error {
@@ -122,13 +124,16 @@ final class SleepLabViewModel: ObservableObject {
                     hasCompletedHealthAuth = true
                     loadState = .denied
                     errorMessage = error.localizedDescription
+                    AppHaptics.warning()
                 case .unavailable:
                     loadState = .failed
                     errorMessage = error.localizedDescription
+                    AppHaptics.error()
                 }
             } catch {
                 loadState = .failed
                 errorMessage = error.localizedDescription
+                AppHaptics.error()
             }
         }
     }
@@ -136,15 +141,18 @@ final class SleepLabViewModel: ObservableObject {
     func refreshTimeline() {
         guard loadState == .ready else { return }
 
+        AppHaptics.impact(.light)
         loadState = .loading
         Task {
             do {
                 sleepDays = try await healthKitService.loadSleepDays(forLast: 30)
                 patternResultBySelectionKey.removeAll()
                 loadState = .ready
+                AppHaptics.success()
             } catch {
                 loadState = .failed
                 errorMessage = error.localizedDescription
+                AppHaptics.error()
             }
         }
     }
@@ -152,15 +160,19 @@ final class SleepLabViewModel: ObservableObject {
     func toggleSelection(for day: DaySleepRecord) {
         if selectedDayIDs.contains(day.id) {
             selectedDayIDs.remove(day.id)
+            AppHaptics.selection()
             return
         }
 
         guard selectedDayIDs.count < 5 else { return }
         selectedDayIDs.insert(day.id)
+        AppHaptics.selection()
     }
 
     func clearSelection() {
+        guard !selectedDayIDs.isEmpty else { return }
         selectedDayIDs.removeAll()
+        AppHaptics.impact(.light)
     }
 
     func logs(for dayStart: Date) -> [DayBehaviorLog] {
@@ -171,12 +183,32 @@ final class SleepLabViewModel: ObservableObject {
         (try? behaviorRepository.fetchLogs(for: priorEventDay(forSleepDay: dayStart))) ?? []
     }
 
+    /// Comparison and pattern-analysis events for a sleep day.
+    /// This merges manual logs with HealthKit workouts from the prior event day.
+    func comparisonEvents(forSleepDay dayStart: Date) -> [DayBehaviorLog] {
+        let eventDay = priorEventDay(forSleepDay: dayStart)
+        let manualLogs = logs(forSleepDay: dayStart)
+        let workoutLogs = workouts(forSleepDay: dayStart).map { workout in
+            DayBehaviorLog(
+                id: UUID(),
+                dayStart: eventDay,
+                tagName: "Workout",
+                note: workoutComparisonNote(for: workout),
+                loggedAt: workout.endDate
+            )
+        }
+
+        return (manualLogs + workoutLogs).sorted { $0.loggedAt < $1.loggedAt }
+    }
+
     func addCustomTag(name: String, colorHex: String) {
         do {
             try behaviorRepository.addCustomTag(name: name, colorHex: colorHex)
             events = try behaviorRepository.fetchTags()
+            AppHaptics.success()
         } catch {
             errorMessage = "Could not save event type."
+            AppHaptics.error()
         }
     }
 
@@ -184,8 +216,10 @@ final class SleepLabViewModel: ObservableObject {
         do {
             try behaviorRepository.addLog(for: dayStart, tagName: tagName, note: note, eventTime: eventTime)
             patternResultBySelectionKey.removeAll()
+            AppHaptics.success()
         } catch {
             errorMessage = "Could not save event."
+            AppHaptics.error()
         }
     }
 
@@ -198,8 +232,10 @@ final class SleepLabViewModel: ObservableObject {
                 eventTime: eventTime
             )
             patternResultBySelectionKey.removeAll()
+            AppHaptics.success()
         } catch {
             errorMessage = "Could not save event."
+            AppHaptics.error()
         }
     }
 
@@ -207,8 +243,10 @@ final class SleepLabViewModel: ObservableObject {
         do {
             try behaviorRepository.deleteLog(id: log.id)
             patternResultBySelectionKey.removeAll()
+            AppHaptics.success()
         } catch {
             errorMessage = "Could not delete event."
+            AppHaptics.error()
         }
     }
 
@@ -258,8 +296,8 @@ final class SleepLabViewModel: ObservableObject {
         guard !days.isEmpty else { return }
 
         let orderedDays = days.sorted { $0.dayStart > $1.dayStart }
-        let logsBySleepDay = Dictionary(uniqueKeysWithValues: orderedDays.map { ($0.dayStart, logs(forSleepDay: $0.dayStart)) })
-        let deterministicInsights = deterministicPatternEngine.analyze(days: orderedDays, logsBySleepDay: logsBySleepDay)
+        let comparisonEventsBySleepDay = Dictionary(uniqueKeysWithValues: orderedDays.map { ($0.dayStart, comparisonEvents(forSleepDay: $0.dayStart)) })
+        let deterministicInsights = deterministicPatternEngine.analyze(days: orderedDays, logsBySleepDay: comparisonEventsBySleepDay)
 
         let key = patternSelectionKey(for: orderedDays)
 
@@ -291,7 +329,7 @@ final class SleepLabViewModel: ObservableObject {
         }
 
         do {
-            let payload = buildPatternPayload(days: orderedDays, logsBySleepDay: logsBySleepDay)
+            let payload = buildPatternPayload(days: orderedDays, logsBySleepDay: comparisonEventsBySleepDay)
             let aiResponse = try await patternAPIService.analyze(payload: payload)
             result.aiSummary = aiResponse.aiSummary
             result.aiInsights = aiResponse.insights
@@ -348,26 +386,6 @@ final class SleepLabViewModel: ObservableObject {
                 )
             }
 
-            // Auto-generate workout events from Apple Watch data
-            let workoutEvents: [PatternEventPayload] = day.workouts.map { workout in
-                var noteParts = ["\(Int(workout.durationMinutes)) min", workout.intensity + " Intensity"]
-                if let cal = workout.caloriesBurned {
-                    noteParts.append("\(Int(cal)) cal")
-                }
-
-                var minutesBeforeSleep: Double? = nil
-                if let mainSleepStart = mainSleepWindow?.start {
-                    minutesBeforeSleep = mainSleepStart.timeIntervalSince(workout.endDate) / 60
-                }
-
-                return PatternEventPayload(
-                    name: "Workout: \(workout.activityType)",
-                    timestampISO: PatternFormatters.isoFormatter.string(from: workout.endDate),
-                    note: noteParts.joined(separator: " · "),
-                    minutesBeforeMainSleepStart: minutesBeforeSleep
-                )
-            }
-
             return PatternDayPayload(
                 dayLabel: day.dayStart.formatted(.dateTime.month(.abbreviated).day()),
                 dayStartISO: PatternFormatters.isoFormatter.string(from: day.dayStart),
@@ -385,7 +403,7 @@ final class SleepLabViewModel: ObservableObject {
                 ),
                 stageDurations: stageDurations,
                 segments: segments,
-                events: events + workoutEvents
+                events: events
             )
         }
 
@@ -399,7 +417,7 @@ final class SleepLabViewModel: ObservableObject {
     func buildAgentSyncPayload() -> AgentSyncPayload {
         let actualLogs = Dictionary(
             uniqueKeysWithValues: sleepDays.map { day in
-                (day.dayStart, (try? behaviorRepository.fetchLogs(for: priorEventDay(forSleepDay: day.dayStart))) ?? [])
+                (day.dayStart, comparisonEvents(forSleepDay: day.dayStart))
             }
         )
         let patternPayload = buildPatternPayload(days: sleepDays, logsBySleepDay: actualLogs)
@@ -423,6 +441,14 @@ final class SleepLabViewModel: ObservableObject {
                 print("[AgentSync] Background sync failed: \(error.localizedDescription)")
             }
         }
+    }
+
+    private func workoutComparisonNote(for workout: WorkoutDetail) -> String {
+        var parts = [workout.activityType, "\(Int(workout.durationMinutes.rounded())) min", workout.intensity + " intensity"]
+        if let calories = workout.caloriesBurned {
+            parts.append("\(Int(calories.rounded())) cal")
+        }
+        return parts.joined(separator: " · ")
     }
 }
 

@@ -16,6 +16,7 @@
 		473509A7018326235D40CFB8 /* BehaviorModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 190799FDB5380F66F51BED12 /* BehaviorModels.swift */; };
 		4D05AE98A1671880A179E37C /* BehaviorRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 302436F72222332DCDB51A95 /* BehaviorRepository.swift */; };
 		4D3C23A0079E531793E7396D /* SleepLabViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 238B3A50D6F7728415C0037D /* SleepLabViewModel.swift */; };
+		5875E0A1A11C42A4B8F2C113 /* AppHaptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5875E0A0A11C42A4B8F2C113 /* AppHaptics.swift */; };
 		61198B96FA183E2D1F8258A1 /* SleepPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B78A588CB84CBBB11E5FE6 /* SleepPalette.swift */; };
 		7D084D2A512DAC290984BB2C /* LogBehaviorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF7A0266298B6B59C7F6CFA0 /* LogBehaviorSheet.swift */; };
 		89549E272F54255900A8BED1 /* AgentSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89549E262F54255900A8BED1 /* AgentSyncService.swift */; };
@@ -41,6 +42,7 @@
 		3F833AD7B24B1270E19B699E /* HealthKitService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HealthKitService.swift; path = Services/HealthKitService.swift; sourceTree = "<group>"; };
 		43F815F8D7346F1E87016C67 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
 		49B78A588CB84CBBB11E5FE6 /* SleepPalette.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SleepPalette.swift; path = Views/Shared/SleepPalette.swift; sourceTree = "<group>"; };
+		5875E0A0A11C42A4B8F2C113 /* AppHaptics.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppHaptics.swift; path = Views/Shared/AppHaptics.swift; sourceTree = "<group>"; };
 		5C3B0CF235F28E67340FB394 /* TimelineView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimelineView.swift; path = Views/Timeline/TimelineView.swift; sourceTree = "<group>"; };
 		6AE5635412AB0E1D24566544 /* AppRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppRootView.swift; path = App/AppRootView.swift; sourceTree = "<group>"; };
 		761A7705CC7BCA8A6B212287 /* ComparisonView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ComparisonView.swift; path = Views/Comparison/ComparisonView.swift; sourceTree = "<group>"; };
@@ -79,6 +81,7 @@
 				3F833AD7B24B1270E19B699E /* HealthKitService.swift */,
 				302436F72222332DCDB51A95 /* BehaviorRepository.swift */,
 				238B3A50D6F7728415C0037D /* SleepLabViewModel.swift */,
+				5875E0A0A11C42A4B8F2C113 /* AppHaptics.swift */,
 				49B78A588CB84CBBB11E5FE6 /* SleepPalette.swift */,
 				250E718C3D6A7EAB86D48D6E /* HealthPermissionView.swift */,
 				5C3B0CF235F28E67340FB394 /* TimelineView.swift */,
@@ -206,6 +209,7 @@
 				B65F60A55056FF91804E1234 /* HealthKitService.swift in Sources */,
 				4D05AE98A1671880A179E37C /* BehaviorRepository.swift in Sources */,
 				4D3C23A0079E531793E7396D /* SleepLabViewModel.swift in Sources */,
+				5875E0A1A11C42A4B8F2C113 /* AppHaptics.swift in Sources */,
 				61198B96FA183E2D1F8258A1 /* SleepPalette.swift in Sources */,
 				AFB95BCDCAF9830378F2FB0C /* HealthPermissionView.swift in Sources */,
 				453B51B30670FDB5BD83D678 /* TimelineView.swift in Sources */,

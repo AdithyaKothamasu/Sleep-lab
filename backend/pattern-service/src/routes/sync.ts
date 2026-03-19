@@ -52,8 +52,25 @@ export async function handleSync(request: Request, env: Env, config: ServiceConf
         return errorResponse(400, "Invalid request body", String(error));
     }
 
+    // Temporary debugging for sync payload shape. Uncomment if sync validation regresses.
+    // if (body && typeof body === "object" && !Array.isArray(body)) {
+    //     const record = body as Record<string, unknown>;
+    //     console.log("[sync] incoming payload summary", {
+    //         keys: Object.keys(record),
+    //         hasDays: Array.isArray(record.days),
+    //         daysCount: Array.isArray(record.days) ? record.days.length : null,
+    //         hasSelectedDates: Array.isArray(record.selectedDates),
+    //         selectedDatesCount: Array.isArray(record.selectedDates) ? record.selectedDates.length : null
+    //     });
+    // } else {
+    //     console.log("[sync] incoming payload was not an object", {
+    //         bodyType: Array.isArray(body) ? "array" : typeof body
+    //     });
+    // }
+
     const parsed = dataSyncRequestSchema.safeParse(body);
     if (!parsed.success) {
+        // console.log("[sync] payload validation failed", parsed.error.flatten());
         return errorResponse(400, "Invalid sync payload", parsed.error.flatten());
     }
 
